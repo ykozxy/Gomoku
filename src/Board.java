@@ -1,0 +1,977 @@
+import java.util.*;
+
+/**
+ * 主棋盘类
+ * <p>
+ * The Main Board.
+ */
+@SuppressWarnings("WeakerAccess")
+public class Board {
+  /**
+   * 常量：表示一个空位
+   * <p>
+   * The constant represents EMPTY position.
+   */
+  public static final int EMPTY = 10000;
+  /**
+   * 常量：表示黑子
+   * <p>
+   * The constant represents BLACK chess.
+   */
+  public static final int BLACK = 10001;
+  /**
+   * 常量：表示白子
+   * <p>
+   * The constant represent WHITE chess.
+   */
+  public static final int WHITE = 10002;
+  /**
+   * 常量：表示平局（游戏状态）
+   * 在判断棋盘输赢时会用，若双方平局则返回这个常量
+   * <p>
+   * The constant represent the TIE condition.
+   * It is used when evaluating winning condition
+   * when all the places on the board is filled and no player win.
+   */
+  public static final int TIE = 10003;
+  /**
+   * 常量：继续游戏（游戏状态）
+   * 在判断棋盘输赢时会用，若没有玩家获胜或平局（游戏继续），则返回这个常量
+   * <p>
+   * The constant represent the CONTINUE condition.
+   * It is used when evaluating winning condition when there's no player win.
+   * (the game continue).
+   */
+  public static final int CONTINUE = 10004;
+  /**
+   * 常量：储存所有的棋形评分标准
+   * 例如："4+"表示活四棋形，其所对应的分数是100000
+   * 用法：STANDARDS.get(String chessType) -> int correspondScore
+   * <p>
+   * The constant STANDARDS.
+   * It stores the corresponding points for each types of chess.
+   * eg. 4+ represent continue 4 chess without being blocked, and its score is 100000
+   * Usage: STANDARDS.get(String chessType) -> int correspondScore
+   */
+  public static final Map<String, Integer> STANDARDS = Map.of(
+          "5+", 10000000,
+          "4+", 100000,
+          "3+", 1000,
+          "2+", 100,
+          "1+", 10,
+          "4-", 1000,
+          "3-", 100,
+          "2-", 10,
+          "1-", 1
+  );
+  /**
+   * 棋盘得分缓存,用于加速计算棋盘估分
+   * 每一次计算棋盘的得分都会缓存在此，棋盘以哈希码表示
+   * 键是棋盘的哈希码；
+   * 值是一个新的映射表，储存不同玩家在此情况下的分数
+   * 用法：boardScoreCache.get(int boardHashCode).get(int playerNumber) -> int score
+   * <p>
+   * Cache of scores of different boards
+   * Each time the score of the board is cached here (when newly calculated)
+   * The board is represented by its hash code
+   * Key: Hashcode of board
+   * Value: A new map stores different scores for different players at this situation
+   * Usage: boardScoreCache.get(int boardHashCode).get(int playerNumber) -> int score
+   */
+  Map<Integer, Map<Integer, Integer>> boardScoreCache = new HashMap<>();
+  /**
+   * 单点得分缓存，用于加速单点评分
+   * 当附近的位置发生变动时（新下棋，悔棋），会有函数更新其中的得分
+   * 每一个位置分别储存了四个方向上单独的得分
+   * 水平：1
+   * 竖直：2
+   * 两个对角：3,4
+   * 用法：pointScoreCache.get(int player)[int direction][int row][int column] -> int score
+   */
+  Map<Integer, int[][][]> pointScoreCache = Map.of(BLACK, new int[5][15][15], WHITE, new int[5][15][15]);
+  /**
+   * 主要棋盘
+   * 注意：所有的下棋操作必须由setChess方法完成，否则不会更新单点分数缓存
+   */
+  private int[][] board;
+  /**
+   * 记录下棋步骤，用于悔棋
+   */
+  private ArrayList<int[]> operations = new ArrayList<>();
+  /**
+   * 记录当前下棋玩家，默认黑棋开始
+   */
+  private int playerTurn = BLACK;
+
+  /**
+   * 默认构造器
+   */
+  public Board() {
+    reset();
+  }
+
+  /**
+   * 带传入数据的构造器
+   *
+   * @param data       棋盘（必须是二维数组形式）
+   * @param playerTurn 当前玩家
+   */
+  public Board(int[][] data, int playerTurn) {
+//    传入参数格式
+    if (data.length != 15 || data[0].length != 15) {
+      System.out.println("Illegal board size");
+      throw new ArrayIndexOutOfBoundsException();
+    }
+    for (int[] i : data) {
+      for (int j : i) {
+        if (j != EMPTY && j != BLACK && j != WHITE) {
+          throw new ValueOutOfRangeException();
+        }
+      }
+    }
+
+    this.board = data;
+    if (playerTurn != WHITE && playerTurn != BLACK) {
+      throw new ValueOutOfRangeException();
+    }
+    this.playerTurn = playerTurn;
+
+//    更新棋盘上所有点的分数
+    for (int i = 0; i < 15; i++) {
+      for (int j = 0; j < 15; j++) {
+        updateScore(i, j);
+      }
+    }
+  }
+
+  /**
+   * The entry point of application.
+   *
+   * @param args the input arguments
+   */
+  public static void main(String[] args) {
+    Board board = new Board();
+    board.setChess(7, 5, BLACK);
+    board.setChess(7, 6, WHITE);
+    board.setChess(7, 7, WHITE);
+    board.setChess(7, 8, WHITE);
+    board.setChess(7, 10, WHITE);
+    board.setChess(7, 11, BLACK);
+    System.out.println(board);
+    System.out.println(board.scorePoint(7, 7, WHITE, 1));
+  }
+
+  /**
+   * Gets player turn.
+   *
+   * @return the player turn
+   */
+  public int getPlayerTurn() {
+    return playerTurn;
+  }
+
+  /**
+   * Gets board.
+   *
+   * @return the board
+   */
+  public int[][] getBoard() {
+    return board;
+  }
+
+  /**
+   * 下棋，不记录当前操作
+   * 这个方法多是在ai计算和调试时用，真正下棋需要用另一个setChess方法
+   *
+   * @param row    行数
+   * @param column 列数
+   * @param player 下棋玩家（BLACK, WHITE, EMPTY）
+   * @throws ValueOutOfRangeException 三个参数中任意一个超出范围
+   */
+  public void setChess(int row, int column, int player) throws ValueOutOfRangeException {
+    if (row >= 15 || column >= 15
+            || row < 0 || column < 0) {
+      throw new ValueOutOfRangeException();
+    }
+    if (player != BLACK && player != WHITE && player != EMPTY) {
+      throw new ValueOutOfRangeException();
+    }
+    updateScore(row, column);
+    board[row][column] = player;
+  }
+
+  /**
+   * 下棋
+   *
+   * @param row    行数
+   * @param column 列数
+   * @param record 是否记录
+   * @throws ValueOutOfRangeException 传入参数超出范围
+   * @throws RedundantChessException  所下位置已经有棋子
+   */
+  public void setChess(int row, int column, boolean record)
+          throws ValueOutOfRangeException, RedundantChessException {
+    if (row >= 15 || column >= 15
+            || row < 0 || column < 0) {
+      throw new ValueOutOfRangeException();
+    }
+    if (board[row][column] != EMPTY) {
+      throw new RedundantChessException();
+    }
+
+    updateScore(row, column);
+    board[row][column] = playerTurn;
+
+//    记录操作
+    if (record) {
+      int[] temp = {row, column};
+      this.operations.add(temp);
+    }
+
+//    转换玩家
+    playerTurn = (playerTurn == BLACK) ? WHITE : BLACK;
+  }
+
+  /**
+   * Update score.
+   *
+   * @param row    the row
+   * @param column the column
+   */
+  public void updateScore(int row, int column) {
+    Timer.set("Update");
+    int range = 6;
+    for (int i = -range; i <= range; i++) {
+      int y = column + i;
+      if (row < 0 || row > 14 || y < 0 || y > 14) continue;
+      update(row, column, 1);
+    }
+    for (int i = -range; i <= range; i++) {
+      int x = row + i;
+      if (x < 0 || x > 14 || column < 0 || column > 14) continue;
+      update(row, column, 2);
+    }
+    for (int i = -range; i <= range; i++) {
+      int x = row + i, y = column + i;
+      if (x < 0 || x > 14 || y < 0 || y > 14) continue;
+      update(row, column, 3);
+    }
+    for (int i = -range; i <= range; i++) {
+      int x = row + i, y = column - i;
+      if (x < 0 || x > 14 || y < 0 || y > 14) continue;
+      update(row, column, 4);
+    }
+  }
+
+  private void update(int row, int column, int direction) {
+    int player = board[row][column];
+    if (player == EMPTY || player == BLACK) {
+      int score = scorePoint(row, column, BLACK, direction);
+      pointScoreCache.get(BLACK)[direction][row][column] = score;
+    } else pointScoreCache.get(BLACK)[direction][row][column] = 0;
+    if (player == EMPTY || player == WHITE) {
+      int score = scorePoint(row, column, WHITE, direction);
+      pointScoreCache.get(WHITE)[direction][row][column] = score;
+    } else pointScoreCache.get(WHITE)[direction][row][column] = 0;
+  }
+
+  /**
+   * Score the board.
+   *
+   * @param player the player number
+   * @param weight the weight of making difference.
+   *               Bigger the weight, more this function will consider the enemy's score
+   * @return the score among the board
+   */
+  public int scoreBoard(int player, double weight) {
+    Timer.set("scoreBoard");
+
+    int hashCode = Arrays.deepHashCode(board);
+    if (boardScoreCache.containsKey(hashCode) && boardScoreCache.get(hashCode).containsKey(player))
+      return boardScoreCache.get(hashCode).get(player);
+    int result = _scoreBoard(player, weight);
+    if (!boardScoreCache.containsKey(hashCode))
+      boardScoreCache.put(hashCode, new HashMap<>());
+    boardScoreCache.get(hashCode).put(player, result);
+
+    return result;
+  }
+
+  private int _scoreBoard(int player, double weight) {
+    int selfScore = 0, enemyScore = 0;
+    for (int i = 0; i < 15; i++) {
+      for (int j = 0; j < 15; j++) {
+        if (board[i][j] == player)
+          for (int direction = 1; direction < 5; direction++)
+            selfScore += pointScoreCache.get(player)[direction][i][j];
+        else if (board[i][j] != EMPTY)
+          for (int direction = 1; direction < 5; direction++)
+            enemyScore += pointScoreCache.get(player == WHITE ? BLACK : WHITE)[direction][i][j];
+      }
+    }
+    return (int) (selfScore - weight * enemyScore);
+  }
+
+  /**
+   * The old version of scoring the entire board, now it is abounded.
+   *
+   * @param player the player number
+   * @return the score of the board
+   */
+  private int _scoreBoardOld(int player) {
+    int score = 0;
+    for (int[] o_row : splitBoard()) {
+      int[] row = new int[o_row.length + 2];
+      row[0] = player == BLACK ? WHITE : BLACK;
+      row[row.length - 1] = player == BLACK ? WHITE : BLACK;
+      System.arraycopy(o_row, 0, row, 1, o_row.length);
+      int chessCount = 0;
+      int emptyCount = 0;
+      boolean continuity = true;
+      for (int i = 0; i < row.length; i++) {
+        int chess = row[i];
+
+        if (chess == player) {
+          if (++chessCount == 5) {
+            score += Board.STANDARDS.get("5+");
+            chessCount = 0;
+            emptyCount = 0;
+            continuity = true;
+          } else if (emptyCount != 0)
+            continuity = false;
+
+        } else if (chess == EMPTY) {
+          if (chessCount == 0) {
+            continue;
+          }
+          if (++emptyCount == 2) {
+            score += Board.STANDARDS.get(String.format(
+                    "%d%s",
+                    chessCount,
+                    (continuity && row[i - chessCount - emptyCount] == EMPTY) ? "+" : "-"));
+            chessCount = 0;
+            emptyCount = 0;
+            continuity = true;
+          }
+
+        } else {
+          if (chessCount != 0) {
+//            Case x 1 1 1 0 2
+            if (continuity && emptyCount != 0) {
+              if (row[i - chessCount - emptyCount - 1] == EMPTY)
+                score += Board.STANDARDS.get(String.format("%d+", chessCount));
+              else
+                score += Board.STANDARDS.get(String.format("%d-", chessCount));
+            }
+//            Case x 1 1 1 2
+            else {
+//              Case is continue
+              if (continuity && row[i - chessCount - 1] == EMPTY)
+                score += Board.STANDARDS.get(String.format("%d-", chessCount));
+              else if (!continuity) {
+                if (row[i - chessCount - 2] != EMPTY) {
+                  if (chessCount == 4)
+                    score += Board.STANDARDS.get("4-");
+                } else {
+                  score += Board.STANDARDS.get(String.format("%d-", chessCount));
+                }
+              }
+            }
+          }
+          chessCount = 0;
+          emptyCount = 0;
+          continuity = true;
+        }
+      }
+      if (chessCount != 0) {
+        score += Board.STANDARDS.get(String.format("%d-", chessCount));
+      }
+    }
+    return score;
+  }
+
+
+  /**
+   * Scoring a particular point.
+   *
+   * @param row       the row number
+   * @param column    the column number
+   * @param player    the player
+   * @param direction the direction
+   * @return the score of this point
+   */
+  public int scorePoint(int row, int column, int player, int... direction) {
+    Timer.set("scorePoint");
+    int emptyPosition, count, block;
+    int score = 0;
+    boolean horizontal = false, vertical = false, diagonal1 = false, diagonal2 = false;
+    for (int i : direction) {
+      if (i == 1) horizontal = true;
+      else if (i == 2) vertical = true;
+      else if (i == 3) diagonal1 = true;
+      else if (i == 4) diagonal2 = true;
+    }
+
+//    Horizontal
+    if (horizontal) {
+      emptyPosition = -1;
+      count = 1;
+      block = 0;
+//    To the right
+      for (int i = column + 1; true; i++) {
+        if (i > 14) {
+//        Reach the end of chessboard
+          block++;
+          break;
+        }
+        int chess = board[row][i];
+//      If the place is empty
+        if (chess == EMPTY) {
+          if (
+                  emptyPosition == -1 &&  /* No empty has not been recorded */
+                          i < 14 &&  /* Have at least 1 block to the boarder */
+                          board[row][i + 1] == player  /* Has chess after empty space */
+          ) emptyPosition = i - column;
+          else break;
+        } else if (chess == player)
+          count++;
+        else {
+          block++;
+          break;
+        }
+      }
+//   To the left
+      for (int i = column - 1; true; i--) {
+        if (i < 0) {
+          block++;
+          break;
+        }
+        int chess = board[row][i];
+        if (chess == EMPTY) {
+          if (emptyPosition == -1 && i > 0 && board[row][i - 1] == player)
+            emptyPosition = 0;
+          else break;
+        } else if (chess == player) {
+          count++;
+//        Here, if there are still chess on the left side of empty space,
+//        then the empty position will increase by 1
+          emptyPosition += (emptyPosition == -1) ? 0 : 1;
+        } else {
+          block++;
+          break;
+        }
+      }
+      score += calculateScore(emptyPosition, count, block);
+    }
+
+//    Vertical
+    if (vertical) {
+      emptyPosition = -1;
+      count = 1;
+      block = 0;
+//    Downward
+      for (int i = row + 1; true; i++) {
+        if (i > 14) {
+          block++;
+          break;
+        }
+        int chess = board[i][column];
+        if (chess == EMPTY) {
+          if (emptyPosition == -1 && i < 14 && board[i + 1][column] == player)
+            emptyPosition = i - column;
+          else break;
+        } else if (chess == player)
+          count++;
+        else {
+          block++;
+          break;
+        }
+      }
+//    Upward
+      for (int i = row - 1; true; i--) {
+        if (i < 0) {
+          block++;
+          break;
+        }
+        int chess = board[i][column];
+        if (chess == EMPTY) {
+          if (emptyPosition == -1 && i > 0 && board[i - 1][column] == player)
+            emptyPosition = 0;
+          else break;
+        } else if (chess == player) {
+          count++;
+          emptyPosition += (emptyPosition == -1) ? 0 : 1;
+        } else {
+          block++;
+          break;
+        }
+      }
+      score += calculateScore(emptyPosition, count, block);
+    }
+
+//    Upper-left to lower-right
+    if (diagonal1) {
+      emptyPosition = -1;
+      count = 1;
+      block = 0;
+//    Toward right
+      for (int i = 1; true; i++) {
+        int x = row + i, y = column + i;
+        if (x > 14 || y > 14) {
+          block++;
+          break;
+        }
+        int chess = board[x][y];
+        if (chess == EMPTY) {
+          if (emptyPosition == -1 && x < 14 && y < 14 && board[x + 1][y + 1] == player)
+            emptyPosition = i - column;
+          else
+            break;
+        } else if (chess == player)
+          count++;
+        else {
+          block++;
+          break;
+        }
+      }
+//    Toward left
+      for (int i = 1; true; i++) {
+        int x = row - i;
+        int y = column - i;
+        if (x < 0 || y < 0) {
+          block++;
+          break;
+        }
+        int chess = board[x][y];
+        if (chess == EMPTY) {
+          if (emptyPosition == -1 && x > 0 && y > 0 && board[x - 1][y - 1] == player)
+            emptyPosition = 0;
+          else break;
+        } else if (chess == player) {
+          count++;
+          emptyPosition += (emptyPosition == -1) ? 0 : 1;
+        } else {
+          block++;
+          break;
+        }
+      }
+      score += calculateScore(emptyPosition, count, block);
+    }
+
+//    Upper-right to lower left
+    if (diagonal2) {
+      emptyPosition = -1;
+      count = 1;
+      block = 0;
+//    Downward
+      for (int i = 1; true; i++) {
+        int x = row + i, y = column - i;
+        if (x < 0 || x > 14 || y < 0 || y > 14) {
+          block++;
+          break;
+        }
+        int chess = board[x][y];
+        if (chess == EMPTY) {
+          if (emptyPosition == -1 && x < 14 && y > 0 && board[x + 1][y - 1] == player)
+            emptyPosition = i - column;
+          else
+            break;
+        } else if (chess == player)
+          count++;
+        else {
+          block++;
+          break;
+        }
+      }
+//    Upward
+      for (int i = 1; true; i++) {
+        int x = row - i;
+        int y = column + i;
+        if (x < 0 || x > 14 || y < 0 || y > 14) {
+          block++;
+          break;
+        }
+        int chess = board[x][y];
+        if (chess == EMPTY) {
+          if (emptyPosition == -1 && x > 0 && y < 14 && board[x - 1][y + 1] == player)
+            emptyPosition = 0;
+          else break;
+        } else if (chess == player) {
+          count++;
+          emptyPosition += (emptyPosition == -1) ? 0 : 1;
+        } else {
+          block++;
+          break;
+        }
+      }
+      score += calculateScore(emptyPosition, count, block);
+    }
+
+    return score;
+  }
+
+
+  @SuppressWarnings("Duplicates")
+  private int calculateScore(int emptyPosition, int count, int block) {
+    int five = Board.STANDARDS.get("5+"),
+            four = Board.STANDARDS.get("4+"),
+            three = Board.STANDARDS.get("3+"),
+            two = Board.STANDARDS.get("2+"),
+            one = Board.STANDARDS.get("1+"),
+            blockFour = Board.STANDARDS.get("4-"),
+            blockThree = Board.STANDARDS.get("3-"),
+            blockTwo = Board.STANDARDS.get("2-"),
+            blockOne = Board.STANDARDS.get("1-");
+//    No empty space
+    if (emptyPosition <= 0) {
+      if (count >= 5)
+        return five;
+      if (block == 0) {
+        switch (count) {
+          case 1:
+            return one;
+          case 2:
+            return two;
+          case 3:
+            return three;
+          case 4:
+            return four;
+        }
+      } else if (block == 1) {
+        switch (count) {
+          case 1:
+            return blockOne;
+          case 2:
+            return blockTwo;
+          case 3:
+            return blockThree;
+          case 4:
+            return blockFour;
+        }
+      }
+
+    } else if (emptyPosition == 1 || emptyPosition == count - 1) {
+//      Empty on the first position
+      if (count >= 6)
+        return five;
+      if (block == 0) {
+        switch (count) {
+          case 2:
+            return two / 2;
+          case 3:
+            return three;
+          case 4:
+            return blockFour;
+          case 5:
+            return four;
+        }
+      } else if (block == 1) {
+        switch (count) {
+          case 2:
+            return blockTwo;
+          case 3:
+            return blockThree;
+          case 4:
+            return blockFour;
+          case 5:
+            return blockFour;
+        }
+      }
+
+    } else if (emptyPosition == 2 || emptyPosition == count - 2) {
+//      Empty on the second position
+      if (count >= 7)
+        return five;
+      if (block == 0) {
+        switch (count) {
+          case 3:
+            return three;
+          case 4:
+          case 5:
+            return blockFour;
+          case 6:
+            return four;
+        }
+      } else if (block == 1) {
+        switch (count) {
+          case 3:
+            return blockThree;
+          case 4:
+            return blockFour;
+          case 5:
+            return blockFour;
+          case 6:
+            return four;
+        }
+      } else if (block == 2) {
+        if (count == 4 || count == 5 || count == 6) {
+          return blockFour;
+        }
+      }
+
+    } else if (emptyPosition == 3 || emptyPosition == count - 3) {
+//      Empty on the third position
+      if (count >= 8)
+        return five;
+      if (block == 0) {
+        switch (count) {
+          case 4:
+          case 5:
+            return three;
+          case 6:
+            return blockFour;
+          case 7:
+            return four;
+        }
+      } else if (block == 1) {
+        switch (count) {
+          case 4:
+          case 5:
+          case 6:
+            return blockFour;
+          case 7:
+            return four;
+        }
+      } else if (block == 2) {
+        switch (count) {
+          case 4:
+          case 5:
+          case 6:
+          case 7:
+            return blockFour;
+        }
+      }
+    } else if (emptyPosition == 4 || emptyPosition == count - 4) {
+//      Empty on the fourth position
+      if (count > 9)
+        return five;
+      if (block == 0 && (count == 5 || count == 6 || count == 7 || count == 8))
+        return four;
+      else if (block == 1) {
+        if (count == 4 || count == 5 || count == 6 || count == 7)
+          return blockFour;
+        else if (count == 8)
+          return four;
+      } else if (block == 2 && count == 5 || count == 6 || count == 7 || count == 8)
+        return blockFour;
+    } else if (emptyPosition == 5 || emptyPosition == count - 5)
+      return five;
+    return 0;
+  }
+
+  /**
+   * Withdraw the last operation.
+   *
+   * @return the array list containing the last operation {row, column, playerNumber}
+   * @throws ArrayIndexOutOfBoundsException the array index out of bounds exception
+   */
+  public List<Integer> withdraw() throws ArrayIndexOutOfBoundsException {
+    if (operations.isEmpty()) throw new ArrayIndexOutOfBoundsException();
+    List<Integer> list = new ArrayList<>();
+    int[] last = operations.remove(operations.size() - 1);
+    list.add(last[0]);
+    list.add(last[1]);
+    list.add(board[last[0]][last[1]]);
+    board[last[0]][last[1]] = EMPTY;
+    updateScore(last[0], last[1]);
+    return list;
+  }
+
+  /**
+   * Reset chessboard
+   */
+  public void reset() {
+    board = new int[15][15];
+    for (int i = 0; i < 15; i++) {
+      for (int j = 0; j < 15; j++) {
+        board[i][j] = EMPTY;
+      }
+    }
+    playerTurn = BLACK;
+  }
+
+  /**
+   * Count the number of chess on the board.
+   *
+   * @return number of chess
+   */
+  public int count() {
+    int num = 0;
+    for (int i = 0; i < 15; i++) {
+      for (int j = 0; j < 15; j++) {
+        if (board[i][j] != EMPTY)
+          num++;
+      }
+    }
+    return num;
+  }
+
+  /**
+   * If the game end or not.
+   *
+   * @return the int state codes (BLACK, WHITE, or TIE)
+   */
+  public int isEnd() {
+    Timer.set("isEnd");
+    boolean jump = false;
+    for (int[] line : board) {
+      for (int i : line) {
+        if (i == EMPTY) {
+          jump = true;
+          break;
+        }
+      }
+    }
+    if (!jump) {
+      return TIE;
+    }
+    for (int[] line : splitBoard()) {
+      int current = 0;
+      int count = 0;
+      for (int i : line) {
+        if (i != current) {
+          count = 1;
+          current = i;
+        } else {
+          if (i == EMPTY)
+            continue;
+          if (++count == 5) {
+            return current;
+          }
+        }
+      }
+    }
+//    System.out.println(System.currentTimeMillis() - time);
+    return CONTINUE;
+  }
+
+  /**
+   * If the game end or not.
+   * This overload just determine the adjacent positions to the position provided
+   *
+   * @param row    the row number
+   * @param column the column number
+   * @return the int of player number wins or state codes (BLACK, WHITE, or CONTINUE)
+   */
+  @SuppressWarnings("Duplicates")
+  public int isEnd(int row, int column) {
+    int startRow, startColumn, endRow, endColumn, count;
+    int player = board[row][column];
+//    Horizontal
+    count = 0;
+    startColumn = column - 4 >= 0 ? column - 4 : 0;
+    endColumn = column + 4 <= 14 ? column + 4 : 14;
+    for (int i = startColumn; i <= endColumn; i++) {
+      if (board[row][i] == player) {
+        count++;
+      } else {
+        count = 0;
+      }
+      if (count == 5) {
+        return player;
+      }
+    }
+//    Vertical
+    count = 0;
+    startRow = row - 4 >= 0 ? row - 4 : 0;
+    endRow = row + 4 <= 14 ? row + 4 : 14;
+    for (int i = startRow; i <= endRow; i++) {
+      if (board[i][column] == player) {
+        count++;
+      } else {
+        count = 0;
+      }
+      if (count == 5) {
+        return player;
+      }
+    }
+//    Diagonal 1
+    int currentRow, currentColumn;
+    count = 0;
+    for (int i = 0; i < Math.min(endRow - startRow, endColumn - startColumn); i++) {
+      currentRow = startRow + i;
+      currentColumn = startColumn + i;
+      if (board[currentRow][currentColumn] == player) {
+        count++;
+      } else {
+        count = 0;
+      }
+      if (count == 5) {
+        return player;
+      }
+    }
+//    Diagonal 2
+    count = 0;
+    for (int i = 0; i < Math.min(endRow - startRow, endColumn - startColumn); i++) {
+      currentRow = endRow - i;
+      currentColumn = startColumn + i;
+      if (board[currentRow][currentColumn] == player) {
+        count++;
+      } else {
+        count = 0;
+      }
+      if (count == 5) {
+        return player;
+      }
+    }
+    return CONTINUE;
+  }
+
+  /**
+   * Split board into list.
+   *
+   * @return List containing all lines, columns and diagonals of the board
+   */
+  public List<int[]> splitBoard() {
+    Timer.set("SplitBoard");
+    ArrayList<int[]> out = new ArrayList<>();
+//    Horizontal
+    for (int i = 0; i < 15; i++)
+      out.add(board[i]);
+//    Vertical
+    for (int i = 0; i < 15; i++) {
+      int[] row = new int[15];
+      for (int j = 0; j < 15; j++) {
+        row[j] = board[j][i];
+      }
+      out.add(row);
+    }
+//    Diagonal 1
+    for (int base = 0; base < 29; base++) {
+      int[] line = new int[(base <= 14 ? base + 1 : 15) - (base <= 14 ? 0 : base - 14)];
+      int p = 0;
+      for (int x = (base <= 14 ? 0 : base - 14); x < (base <= 14 ? base + 1 : 15); x++) {
+        line[p++] = board[x][base - x];
+      }
+      out.add(line);
+    }
+//    Diagonal 2
+    for (int diff = -14; diff < 15; diff++) {
+      int[] line = new int[(diff < 0 ? 15 : 15 - diff) - (diff < 0 ? Math.abs(diff) : 0)];
+      int p = 0;
+      for (int x = (diff < 0 ? Math.abs(diff) : 0); x < (diff < 0 ? 15 : 15 - diff); x++) {
+        line[p++] = board[x][diff + x];
+      }
+      out.add(line);
+    }
+    return out;
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder str = new StringBuilder().append("    0  1  2  3  4  5  6  7  8  9  10 11 12 13 14\n");
+    for (int i = 0; i < board.length; i++) {
+      int[] x = board[i];
+      str.append(i >= 10 ? "" : " ").append(i).append(" ");
+      for (int y : x) {
+        str.append(
+                y == EMPTY ? " _" : (y == BLACK ? "●" : "○")
+        ).append(" ");
+      }
+      str.append("\n");
+    }
+    return String.valueOf(str);
+  }
+}
+
+
