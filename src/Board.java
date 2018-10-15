@@ -2,33 +2,33 @@ import java.util.*;
 
 /**
  * 主棋盘类
- * <p>
+ *
  * The Main Board.
  */
 @SuppressWarnings("WeakerAccess")
 public class Board {
   /**
    * 常量：表示一个空位
-   * <p>
+   *
    * The constant represents EMPTY position.
    */
   public static final int EMPTY = 10000;
   /**
    * 常量：表示黑子
-   * <p>
+   *
    * The constant represents BLACK chess.
    */
   public static final int BLACK = 10001;
   /**
    * 常量：表示白子
-   * <p>
+   *
    * The constant represent WHITE chess.
    */
   public static final int WHITE = 10002;
   /**
    * 常量：表示平局（游戏状态）
    * 在判断棋盘输赢时会用，若双方平局则返回这个常量
-   * <p>
+   *
    * The constant represent the TIE condition.
    * It is used when evaluating winning condition
    * when all the places on the board is filled and no player win.
@@ -37,7 +37,7 @@ public class Board {
   /**
    * 常量：继续游戏（游戏状态）
    * 在判断棋盘输赢时会用，若没有玩家获胜或平局（游戏继续），则返回这个常量
-   * <p>
+   *
    * The constant represent the CONTINUE condition.
    * It is used when evaluating winning condition when there's no player win.
    * (the game continue).
@@ -47,7 +47,7 @@ public class Board {
    * 常量：储存所有的棋形评分标准
    * 例如："4+"表示活四棋形，其所对应的分数是100000
    * 用法：STANDARDS.get(String chessType) -> int correspondScore
-   * <p>
+   *
    * The constant STANDARDS.
    * It stores the corresponding points for each types of chess.
    * eg. 4+ represent continue 4 chess without being blocked, and its score is 100000
@@ -70,7 +70,7 @@ public class Board {
    * 键是棋盘的哈希码；
    * 值是一个新的映射表，储存不同玩家在此情况下的分数
    * 用法：boardScoreCache.get(int boardHashCode).get(int playerNumber) -> int score
-   * <p>
+   *
    * Cache of scores of different boards
    * Each time the score of the board is cached here (when newly calculated)
    * The board is represented by its hash code
@@ -88,7 +88,8 @@ public class Board {
    * 两个对角：3,4
    * 用法：pointScoreCache.get(int player)[int direction][int row][int column] -> int score
    */
-  Map<Integer, int[][][]> pointScoreCache = Map.of(BLACK, new int[5][15][15], WHITE, new int[5][15][15]);
+  Map<Integer, int[][][]> pointScoreCache = Map.of(BLACK, new int[5][15][15],
+          WHITE, new int[5][15][15]);
   /**
    * 主要棋盘
    * 注意：所有的下棋操作必须由setChess方法完成，否则不会更新单点分数缓存
@@ -158,7 +159,8 @@ public class Board {
     board.setChess(7, 10, WHITE);
     board.setChess(7, 11, BLACK);
     System.out.println(board);
-    System.out.println(board.scorePoint(7, 7, WHITE, 1));
+    board.reset();
+    System.out.println(board);
   }
 
   /**
@@ -233,63 +235,88 @@ public class Board {
   }
 
   /**
-   * Update score.
+   * 从单点开始更新分数
+   * 由于一个点棋子的变化会同时影响到周围的多个点的分数，所以也要同时计算这些点
    *
-   * @param row    the row
-   * @param column the column
+   * @param row    行号
+   * @param column 列数
    */
   public void updateScore(int row, int column) {
     Timer.set("Update");
-    int range = 6;
+
+//    更新分数的范围
+    final int range = 6;
+//    横向查找
     for (int i = -range; i <= range; i++) {
       int y = column + i;
       if (row < 0 || row > 14 || y < 0 || y > 14) continue;
+//      这里计算的点只更新横向分数
       update(row, column, 1);
     }
+//    纵向查找
     for (int i = -range; i <= range; i++) {
       int x = row + i;
       if (x < 0 || x > 14 || column < 0 || column > 14) continue;
+//      同理只计算纵向
       update(row, column, 2);
     }
+//    斜向查找（左上->右下）
     for (int i = -range; i <= range; i++) {
       int x = row + i, y = column + i;
       if (x < 0 || x > 14 || y < 0 || y > 14) continue;
+//      同上
       update(row, column, 3);
     }
+//    斜向查找（右上->左下）
     for (int i = -range; i <= range; i++) {
       int x = row + i, y = column - i;
       if (x < 0 || x > 14 || y < 0 || y > 14) continue;
+//      同上
       update(row, column, 4);
     }
   }
 
+  /**
+   * 更新单点分数
+   *
+   * @param row       行数
+   * @param column    列数
+   * @param direction 更新分数的方向（1, 2, 3, 4 分别是横纵斜线）
+   */
   private void update(int row, int column, int direction) {
     int player = board[row][column];
+//    新下黑子或变为空位都需要计算黑棋
     if (player == EMPTY || player == BLACK) {
       int score = scorePoint(row, column, BLACK, direction);
+//      保存到缓存中
       pointScoreCache.get(BLACK)[direction][row][column] = score;
-    } else pointScoreCache.get(BLACK)[direction][row][column] = 0;
+    } else pointScoreCache.get(BLACK)[direction][row][column] = 0; /* 若为白棋黑棋分数清零 */
+//    新下白子或变为空位都需要计算白子
     if (player == EMPTY || player == WHITE) {
       int score = scorePoint(row, column, WHITE, direction);
+//      缓存
       pointScoreCache.get(WHITE)[direction][row][column] = score;
-    } else pointScoreCache.get(WHITE)[direction][row][column] = 0;
+    } else pointScoreCache.get(WHITE)[direction][row][column] = 0; /* 若为黑棋白棋分数清零 */
   }
 
   /**
-   * Score the board.
+   * 给整个棋盘打分（包装函数）
    *
-   * @param player the player number
-   * @param weight the weight of making difference.
-   *               Bigger the weight, more this function will consider the enemy's score
-   * @return the score among the board
+   * @param player 要打分的棋子
+   * @param weight 打分权重（权重越大，算分越偏向于防守）
+   *               默认情况是建议 weight = 1
+   * @return 整个棋盘的分数
    */
   public int scoreBoard(int player, double weight) {
     Timer.set("scoreBoard");
 
+//    计算当前棋盘的哈希码
     int hashCode = Arrays.deepHashCode(board);
+//    若缓存中有当前棋盘则直接返回分数
     if (boardScoreCache.containsKey(hashCode) && boardScoreCache.get(hashCode).containsKey(player))
       return boardScoreCache.get(hashCode).get(player);
     int result = _scoreBoard(player, weight);
+//    将结果添加到缓存
     if (!boardScoreCache.containsKey(hashCode))
       boardScoreCache.put(hashCode, new HashMap<>());
     boardScoreCache.get(hashCode).put(player, result);
@@ -297,15 +324,26 @@ public class Board {
     return result;
   }
 
+  /**
+   * 计算整个棋盘的分数（真正计算）
+   *
+   * @param player 要打分的棋子
+   * @param weight 权重，同上
+   * @return 棋盘分数
+   */
   private int _scoreBoard(int player, double weight) {
     int selfScore = 0, enemyScore = 0;
+//    分别计算每个点的分数
     for (int i = 0; i < 15; i++) {
       for (int j = 0; j < 15; j++) {
         if (board[i][j] == player)
+//          注意：一共有四个方向，所以一个点的分数不同方向都要加
           for (int direction = 1; direction < 5; direction++)
+//            直接从单点分数缓存中取值
             selfScore += pointScoreCache.get(player)[direction][i][j];
         else if (board[i][j] != EMPTY)
           for (int direction = 1; direction < 5; direction++)
+//            直接从单点分数缓存中取值
             enemyScore += pointScoreCache.get(player == WHITE ? BLACK : WHITE)[direction][i][j];
       }
     }
@@ -313,7 +351,7 @@ public class Board {
   }
 
   /**
-   * The old version of scoring the entire board, now it is abounded.
+   * 旧版全局评分
    *
    * @param player the player number
    * @return the score of the board
@@ -392,13 +430,13 @@ public class Board {
 
 
   /**
-   * Scoring a particular point.
+   * 单点评分（计算）
    *
-   * @param row       the row number
-   * @param column    the column number
-   * @param player    the player
-   * @param direction the direction
-   * @return the score of this point
+   * @param row       行号
+   * @param column    列数
+   * @param player    要评分的棋子
+   * @param direction 评分方向（1为横向、2为竖直、3为左上->右下、4为右上->左下）
+   * @return 单点得分
    */
   public int scorePoint(int row, int column, int player, int... direction) {
     Timer.set("scorePoint");
@@ -611,6 +649,14 @@ public class Board {
   }
 
 
+  /**
+   * 根据棋形（位置信息）计算具体得分
+   *
+   * @param emptyPosition 空位位置
+   * @param count         己方棋子
+   * @param block         阻挡棋子数量
+   * @return 具体分数
+   */
   @SuppressWarnings("Duplicates")
   private int calculateScore(int emptyPosition, int count, int block) {
     int five = Board.STANDARDS.get("5+"),
@@ -760,10 +806,10 @@ public class Board {
   }
 
   /**
-   * Withdraw the last operation.
+   * 悔一步棋
    *
-   * @return the array list containing the last operation {row, column, playerNumber}
-   * @throws ArrayIndexOutOfBoundsException the array index out of bounds exception
+   * @return 最后一步棋的信息 {row, column, playerNumber}
+   * @throws ArrayIndexOutOfBoundsException 如果当前没有下棋
    */
   public List<Integer> withdraw() throws ArrayIndexOutOfBoundsException {
     if (operations.isEmpty()) throw new ArrayIndexOutOfBoundsException();
@@ -778,7 +824,7 @@ public class Board {
   }
 
   /**
-   * Reset chessboard
+   * 重设棋盘
    */
   public void reset() {
     board = new int[15][15];
@@ -791,9 +837,9 @@ public class Board {
   }
 
   /**
-   * Count the number of chess on the board.
+   * 计算当前棋盘上的棋子数量
    *
-   * @return number of chess
+   * @return 棋子数量
    */
   public int count() {
     int num = 0;
@@ -807,9 +853,9 @@ public class Board {
   }
 
   /**
-   * If the game end or not.
+   * 判断游戏是否结束
    *
-   * @return the int state codes (BLACK, WHITE, or TIE)
+   * @return 整数状态码 (BLACK, WHITE, TIE, CONTINUE)
    */
   public int isEnd() {
     Timer.set("isEnd");
@@ -841,17 +887,16 @@ public class Board {
         }
       }
     }
-//    System.out.println(System.currentTimeMillis() - time);
     return CONTINUE;
   }
 
   /**
-   * If the game end or not.
-   * This overload just determine the adjacent positions to the position provided
+   * 判断游戏是否结束
+   * 这个重载方法只是判断某一个点的输赢
    *
-   * @param row    the row number
-   * @param column the column number
-   * @return the int of player number wins or state codes (BLACK, WHITE, or CONTINUE)
+   * @param row    行数
+   * @param column 列数
+   * @return 整数状态码 (WHITE, BLACK, CONTINUE)
    */
   @SuppressWarnings("Duplicates")
   public int isEnd(int row, int column) {
@@ -918,9 +963,10 @@ public class Board {
   }
 
   /**
-   * Split board into list.
+   * 分离棋盘
+   * 分别输出棋盘中每列、每行、和每个对角线
    *
-   * @return List containing all lines, columns and diagonals of the board
+   * @return 所有的行、列、对角线
    */
   public List<int[]> splitBoard() {
     Timer.set("SplitBoard");
@@ -959,7 +1005,8 @@ public class Board {
 
   @Override
   public String toString() {
-    StringBuilder str = new StringBuilder().append("    0  1  2  3  4  5  6  7  8  9  10 11 12 13 14\n");
+    StringBuilder str = new StringBuilder().
+            append("    0  1  2  3  4  5  6  7  8  9  10 11 12 13 14\n");
     for (int i = 0; i < board.length; i++) {
       int[] x = board[i];
       str.append(i >= 10 ? "" : " ").append(i).append(" ");
