@@ -1,5 +1,8 @@
 import java.io.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * The AI class.
@@ -61,7 +64,7 @@ public class AI {
       e1.printStackTrace();
     }
 
-    ai.initialize(4, false);
+    ai.initialize(6, false);
 
     try (FileOutputStream fileOutputStream = new FileOutputStream("boardCache.cache")) {
       ObjectOutputStream outputStream = new ObjectOutputStream(fileOutputStream);
@@ -99,9 +102,8 @@ public class AI {
         System.out.println("Load data failed!");
     }
     this.board.setChess(7, 7, false);
-    minMaxSearch(deep, false);
+    minMaxSearch(deep, new ArrayList<>());
     this.board.reset();
-
   }
 
 
@@ -113,7 +115,7 @@ public class AI {
    */
   @SuppressWarnings("ConstantConditions")
   public List<int[]> generatePossiblePoints(int player) {
-    Timer.set("generatePossiblePoints");
+    Timer.startRecord("generatePossiblePoints");
     final int neighborDist = 2;
 
     List<int[]> five = new ArrayList<>();
@@ -178,24 +180,29 @@ public class AI {
 
     if (five.size() > 0) {
       Collections.shuffle(five);
+      Timer.endRecord("generatePossiblePoints");
       return five;
     }
 
     if (four.size() > 0) {
       Collections.shuffle(four);
+      Timer.endRecord("generatePossiblePoints");
       return four;
     }
     if (eFour.size() > 0) {
       Collections.shuffle(eFour);
+      Timer.endRecord("generatePossiblePoints");
       return eFour;
     }
 
     if (eFour.size() > 0 && blockedFour.size() == 0) {
       Collections.shuffle(eFour);
+      Timer.endRecord("generatePossiblePoints");
       return eFour;
     }
     if (four.size() > 0 && eBlockedFour.size() == 0) {
       Collections.shuffle(four);
+      Timer.endRecord("generatePossiblePoints");
       return four;
     }
 
@@ -209,6 +216,7 @@ public class AI {
     totalBlockFour.addAll(eBlockedFour);
     if (totalFour.size() > 0) {
       totalFour.addAll(totalBlockFour);
+      Timer.endRecord("generatePossiblePoints");
       return totalFour;
     }
 
@@ -223,8 +231,10 @@ public class AI {
     result.addAll(three);
     result.addAll(eThree);
 
-    if (doubleThree.size() > 0 || eDoubleThree.size() > 0)
+    if (doubleThree.size() > 0 || eDoubleThree.size() > 0) {
+      Timer.endRecord("generatePossiblePoints");
       return result;
+    }
 
     ArrayList<int[]> totalTwo = new ArrayList<>();
     Collections.shuffle(two);
@@ -238,13 +248,18 @@ public class AI {
       result.addAll(neighbor);
     }
 
-    if (result.size() > 20)
+    if (result.size() > 20) {
+      Timer.endRecord("generatePossiblePoints");
+
       return result.subList(0, 20);
-    else
+    } else {
+      Timer.endRecord("generatePossiblePoints");
       return result;
+    }
   }
 
   private boolean hasNeighbor(int row, int column, int neighborDist, int count) {
+    Timer.startRecord("hasNeighbor");
     for (int i = (row - neighborDist >= 0 ? row - neighborDist : 0);
          i < (row + neighborDist <= 14 ? row + neighborDist : 14);
          i++) {
@@ -252,11 +267,14 @@ public class AI {
            j < (column + neighborDist <= 14 ? column + neighborDist : 14);
            j++) {
         if (board.getBoard()[i][j] != EMPTY) {
-          if (--count == 0)
+          if (--count == 0) {
+            Timer.endRecord("hasNeighbor");
             return true;
+          }
         }
       }
     }
+    Timer.endRecord("hasNeighbor");
     return false;
   }
 
@@ -277,37 +295,23 @@ public class AI {
         depth = 8;
     }
 
-    int[] aiChess = new int[0];
+    List<int[]> candidates = new ArrayList<>();
+    boolean goodSituation = false;
     for (int i = 2; i <= depth; i += 2) {
-      aiChess = minMaxSearch(i, false);
-      board.setChess(aiChess[0], aiChess[1], aiNum);
-      if (board.scoreBoard(aiNum, weight) >= Board.STANDARDS.get("4+")) {
-        board.setChess(aiChess[0], aiChess[1], Board.EMPTY);
-        return aiChess;
-      }
-      board.setChess(aiChess[0], aiChess[1], Board.EMPTY);
+      int result = minMaxSearch(i, candidates);
+      if (result >= Board.STANDARDS.get("4+")) return candidates.get(0);
+      goodSituation = result > 0;
     }
-    return aiChess;
-  }
-
-
-  /**
-   * Min max search
-   *
-   * @return the point ai choose
-   */
-  public int[] minMaxSearch() {
-    return minMaxSearch(5, false);
+    return goodSituation ? candidates.get(0) : candidates.get(candidates.size() - 1);
   }
 
   /**
    * Min max search
    *
-   * @param deep  the depth of search
-   * @param print whether print intermediate results
+   * @param deep the depth of search
    * @return the point ai choose
    */
-  int[] minMaxSearch(int deep, boolean print) {
+  int minMaxSearch(int deep, List<int[]> candidate) {
 //    If the board is empty
     boolean find = false;
     for (int[] row : board.getBoard()) {
@@ -322,21 +326,19 @@ public class AI {
       }
     }
     if (!find) {
-      return new int[]{7, 7};
+      candidate.add(new int[]{7, 7});
+      return 0;
     }
 
     int maxV = -999999999;
     List<int[]> points = generatePossiblePoints(aiNum);
     List<int[]> candidates = new ArrayList<>();
-    for (int i = 0; i < points.size(); i++) {
-      int[] point = points.get(i);
-      if (print)
-        System.out.printf("%d / %d\n", i + 1, points.size());
+    for (int[] point : points) {
       board.setChess(point[0], point[1], aiNum);
       int curV = minSearch(
               deep,
-              -999999999,
-              999999999,
+              Integer.MIN_VALUE,
+              Integer.MAX_VALUE,
               board
       );
       if (curV == maxV) {
@@ -350,14 +352,17 @@ public class AI {
 
     }
     Collections.shuffle(candidates);
-    return candidates.get(0);
+    candidate.add(candidates.get(0));
+    return maxV;
   }
 
   private int minSearch(int deep, int alpha, int beta, Board board) {
-    Timer.set("minSearch");
+    Timer.startRecord("minSearch");
     int score = board.scoreBoard(aiNum == WHITE ? BLACK : WHITE, weight);
-    if (deep < 0 || board.isEnd() != CONTINUE)
+    if (deep < 0 || board.isEnd() != CONTINUE) {
+      Timer.endRecord("minSearch");
       return score;
+    }
 
     List<int[]> points = generatePossiblePoints(aiNum == WHITE ? BLACK : WHITE);
     for (int[] currentPoint : points) {
@@ -369,13 +374,15 @@ public class AI {
       if (beta < alpha)
         break;
     }
+    Timer.endRecord("minSearch");
     return beta;
   }
 
   private int maxSearch(int deep, int alpha, int beta, Board board) {
-    Timer.set("maxSearch");
+    Timer.startRecord("maxSearch");
     int score = board.scoreBoard(aiNum, weight);
     if (deep < 0 || board.isEnd() != CONTINUE) {
+      Timer.endRecord("maxSearch");
       return score;
     }
 
@@ -389,6 +396,7 @@ public class AI {
       if (beta < alpha)
         break;
     }
+    Timer.endRecord("maxSearch");
     return alpha;
   }
 

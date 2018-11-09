@@ -22,7 +22,6 @@ public class cmdGame {
     System.out.println("Finished");
 
     Scanner scanner = new Scanner(System.in);
-    String s1 = "", s2 = "";
     do {
 //      int[] userInput = {scanner.nextInt(), scanner.nextInt()};
 //      if (userInput[0] == -1 || userInput[1] == -1) {
@@ -43,9 +42,7 @@ public class cmdGame {
 
       System.out.println("Black●:");
       System.out.println("Thinking...");
-      long startTime = System.currentTimeMillis();
       int[] aiInput = aiBlack.iterativeDeepening(0);
-      System.out.println("Time used: " + (System.currentTimeMillis() - startTime));
       System.out.println(Arrays.toString(aiInput));
       board.setChess(aiInput[0], aiInput[1], true);
       System.out.println(board);
@@ -55,13 +52,11 @@ public class cmdGame {
               board.scoreBoard(Board.BLACK, 1)
       );
       System.out.print("Press enter to continue");
-      s1 = scanner.nextLine();
+//    scanner.nextLine();
 
       System.out.println("White○:");
       System.out.println("Thinking...");
-      startTime = System.currentTimeMillis();
       aiInput = aiWhite.iterativeDeepening(0);
-      System.out.println("Time used: " + (System.currentTimeMillis() - startTime));
       System.out.println(Arrays.toString(aiInput));
       board.setChess(aiInput[0], aiInput[1], true);
       System.out.println(board);
@@ -71,8 +66,9 @@ public class cmdGame {
               board.scoreBoard(Board.BLACK, 1)
       );
       System.out.print("Press enter to continue");
-      s2 = scanner.nextLine();
+//      scanner.nextLine();
     } while (board.isEnd() == Board.CONTINUE);
+    Timer.print();
     System.out.println();
   }
 }

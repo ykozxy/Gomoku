@@ -242,7 +242,7 @@ public class Board {
    * @param column 列数
    */
   public void updateScore(int row, int column) {
-    Timer.set("Update");
+    Timer.startRecord("Update");
 
 //    更新分数的范围
     final int range = 6;
@@ -274,6 +274,7 @@ public class Board {
 //      同上
       update(row, column, 4);
     }
+    Timer.endRecord("Update");
   }
 
   /**
@@ -308,7 +309,7 @@ public class Board {
    * @return 整个棋盘的分数
    */
   public int scoreBoard(int player, double weight) {
-    Timer.set("scoreBoard");
+    Timer.startRecord("scoreBoard");
 
 //    计算当前棋盘的哈希码
     int hashCode = Arrays.deepHashCode(board);
@@ -321,6 +322,7 @@ public class Board {
       boardScoreCache.put(hashCode, new HashMap<>());
     boardScoreCache.get(hashCode).put(player, result);
 
+    Timer.endRecord("scoreBoard");
     return result;
   }
 
@@ -439,7 +441,7 @@ public class Board {
    * @return 单点得分
    */
   public int scorePoint(int row, int column, int player, int... direction) {
-    Timer.set("scorePoint");
+    Timer.startRecord("scorePoint");
     int emptyPosition, count, block;
     int score = 0;
     boolean horizontal = false, vertical = false, diagonal1 = false, diagonal2 = false;
@@ -645,6 +647,7 @@ public class Board {
       score += calculateScore(emptyPosition, count, block);
     }
 
+    Timer.endRecord("scorePoint");
     return score;
   }
 
@@ -858,7 +861,7 @@ public class Board {
    * @return 整数状态码 (BLACK, WHITE, TIE, CONTINUE)
    */
   public int isEnd() {
-    Timer.set("isEnd");
+    Timer.startRecord("isEnd");
     boolean jump = false;
     for (int[] line : board) {
       for (int i : line) {
@@ -869,6 +872,7 @@ public class Board {
       }
     }
     if (!jump) {
+      Timer.endRecord("isEnd");
       return TIE;
     }
     for (int[] line : splitBoard()) {
@@ -882,11 +886,13 @@ public class Board {
           if (i == EMPTY)
             continue;
           if (++count == 5) {
+            Timer.endRecord("isEnd");
             return current;
           }
         }
       }
     }
+    Timer.endRecord("isEnd");
     return CONTINUE;
   }
 
@@ -969,7 +975,6 @@ public class Board {
    * @return 所有的行、列、对角线
    */
   public List<int[]> splitBoard() {
-    Timer.set("SplitBoard");
     ArrayList<int[]> out = new ArrayList<>();
 //    Horizontal
     for (int i = 0; i < 15; i++)

@@ -1,58 +1,53 @@
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
-/**
- * The Timer class.
- */
-public class Timer {
-  private static final Map<String, Long> timeMap = new LinkedHashMap<>();
-  private static final Map<String, Long> timeHappenCount = new LinkedHashMap<>();
-  private static String lastMark = "start";
-  private static long lastTime = System.nanoTime();
+class Timer {
+  private static Map<String, long[]> record = new LinkedHashMap<>();
+  private static Map<String, List<Long>> lastTime = new HashMap<>();
 
-  /**
-   * Set time mark.
-   *
-   * @param mark the mark
-   */
-  public static void set(int mark) {
-    set("" + mark);
+  public static void main(String[] args) throws InterruptedException {
+    startRecord("A");
+    Thread.sleep(1000);
+    endRecord("A");
+    print();
   }
 
-  /**
-   * Set time mark.
-   *
-   * @param mark the mark
-   */
-  static void set(String mark) {
-    long thisTime = System.nanoTime();
-    String key = lastMark + "->" + mark;
-    Long lastSummary = timeMap.get(key);
-    if (lastSummary == null)
-      lastSummary = 0L;
-
-    timeMap.put(key, System.nanoTime() - lastTime + lastSummary);
-    Long lastCount = timeHappenCount.get(key);
-    if (lastCount == null)
-      lastCount = 0L;
-
-    timeHappenCount.put(key, ++lastCount);
-    lastTime = thisTime;
-    lastMark = mark;
+  static void startRecord(String flag) {
+    if (!record.containsKey(flag))
+      record.put(flag, new long[2]);
+    List<Long> t;
+    if (!lastTime.containsKey(flag)) {
+      t = new ArrayList<>();
+    } else {
+      t = lastTime.get(flag);
+    }
+    t.add(System.nanoTime());
+    lastTime.put(flag, t);
+    record.get(flag)[1]++;
   }
 
+  static void endRecord(String flag) {
+    if (!record.containsKey(flag) || lastTime.get(flag).isEmpty()) {
+      System.err.printf("No flag %s started!\n", flag);
+      return;
+    }
+    record.get(flag)[0] += System.nanoTime() - lastTime.get(flag).get(lastTime.get(flag).size() - 1);
+    lastTime.get(flag).remove(lastTime.get(flag).size() - 1);
+  }
 
-  /**
-   * Print out time usage.
-   */
   static void print() {
-    for (Map.Entry<String, Long> entry : timeMap.entrySet()) {
-      System.out.println(
-              String.format("%20s, Total times:%20s,  Repeat times:%20s, Avg times:%20s ", entry.getKey(),
-                      entry.getValue() / 1000000000.0, timeHappenCount.get(entry.getKey()),
-                      entry.getValue() / timeHappenCount.get(entry.getKey()) / 1000000000.0
-              ));
+    System.out.println("Time record for all flags");
+    for (Map.Entry<String, long[]> each : record.entrySet()) {
+      System.out.printf(
+              "Flag \"%s\":\n  Total time: %.5fs\n  Total call: %d\n  Average time: %.10fs\n",
+              each.getKey(),
+              each.getValue()[0] / 1000000000.,
+              each.getValue()[1],
+              each.getValue()[0] / 1000000000. / each.getValue()[1]);
     }
   }
-}
 
+  static void reset() {
+    record.clear();
+    lastTime.clear();
+  }
+}
