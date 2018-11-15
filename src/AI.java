@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+
 /**
  * The AI class.
  */
@@ -25,8 +26,8 @@ public class AI {
    * The constant CONTINUE.
    */
   private static final int CONTINUE = 10004;
-  private Board board;
-  private int aiNum;
+  Board board;
+  int aiNum;
   private double weight;
 
 
@@ -55,7 +56,7 @@ public class AI {
    * @param args the input arguments
    */
   public static void main(String[] args) {
-    AI ai = new AI(new Board(), WHITE, 0.8);
+    AI ai = new AI(new Board(), WHITE, 1);
     File file = new File("boardCache.cache");
     try {
       //noinspection ResultOfMethodCallIgnored
@@ -288,11 +289,9 @@ public class AI {
   public int[] iterativeDeepening(int depth) {
     if (depth == 0) {
       int count = board.count();
-      depth = 4;
-      if (count >= 10)
-        depth = 6;
-      if (count >= 14)
-        depth = 8;
+      depth = 7;
+      if (count >= 6) depth = 9;
+//      if (count >= 12) depth = 11;
     }
 
     List<int[]> candidates = new ArrayList<>();
@@ -308,10 +307,10 @@ public class AI {
   /**
    * Min max search
    *
-   * @param deep the depth of search
+   * @param depth the depth of search
    * @return the point ai choose
    */
-  int minMaxSearch(int deep, List<int[]> candidate) {
+  int minMaxSearch(int depth, List<int[]> outcome) {
 //    If the board is empty
     boolean find = false;
     for (int[] row : board.getBoard()) {
@@ -326,7 +325,7 @@ public class AI {
       }
     }
     if (!find) {
-      candidate.add(new int[]{7, 7});
+      outcome.add(new int[]{7, 7});
       return 0;
     }
 
@@ -336,7 +335,7 @@ public class AI {
     for (int[] point : points) {
       board.setChess(point[0], point[1], aiNum);
       int curV = minSearch(
-              deep,
+              depth,
               Integer.MIN_VALUE,
               Integer.MAX_VALUE,
               board
@@ -349,14 +348,13 @@ public class AI {
         candidates.add(point);
       }
       board.setChess(point[0], point[1], Board.EMPTY);
-
     }
     Collections.shuffle(candidates);
-    candidate.add(candidates.get(0));
+    outcome.add(candidates.get(0));
     return maxV;
   }
 
-  private int minSearch(int deep, int alpha, int beta, Board board) {
+  int minSearch(int deep, int alpha, int beta, Board board) {
     Timer.startRecord("minSearch");
     int score = board.scoreBoard(aiNum == WHITE ? BLACK : WHITE, weight);
     if (deep < 0 || board.isEnd() != CONTINUE) {

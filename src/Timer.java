@@ -3,6 +3,7 @@ import java.util.*;
 class Timer {
   private static Map<String, long[]> record = new LinkedHashMap<>();
   private static Map<String, List<Long>> lastTime = new HashMap<>();
+  static boolean valid = true;
 
   public static void main(String[] args) throws InterruptedException {
     startRecord("A");
@@ -12,6 +13,7 @@ class Timer {
   }
 
   static void startRecord(String flag) {
+    if (!valid) return;
     if (!record.containsKey(flag))
       record.put(flag, new long[2]);
     List<Long> t;
@@ -26,15 +28,17 @@ class Timer {
   }
 
   static void endRecord(String flag) {
-    if (!record.containsKey(flag) || lastTime.get(flag).isEmpty()) {
+    if (!valid) return;
+    try {
+      record.get(flag)[0] += System.nanoTime() - lastTime.get(flag).get(lastTime.get(flag).size() - 1);
+    } catch (NullPointerException | IndexOutOfBoundsException e) {
       System.err.printf("No flag %s started!\n", flag);
-      return;
     }
-    record.get(flag)[0] += System.nanoTime() - lastTime.get(flag).get(lastTime.get(flag).size() - 1);
     lastTime.get(flag).remove(lastTime.get(flag).size() - 1);
   }
 
   static void print() {
+    if (!valid) return;
     System.out.println("Time record for all flags");
     for (Map.Entry<String, long[]> each : record.entrySet()) {
       System.out.printf(

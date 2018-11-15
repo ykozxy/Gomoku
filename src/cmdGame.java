@@ -1,5 +1,4 @@
 import java.util.Arrays;
-import java.util.Scanner;
 
 /**
  * The type Cmd game.
@@ -11,17 +10,18 @@ public class cmdGame {
    * @param args the input arguments
    */
   public static void main(String[] args) {
+    Timer.valid = false;
     Board board = new Board();
     AI aiBlack = new AI(board, Board.BLACK, 1);
     AI aiWhite = new AI(board, Board.WHITE, 1);
     System.out.println("Initializing...");
     long t = System.currentTimeMillis();
-    aiBlack.initialize(3, true);
+    aiBlack.initialize(3, false);
     System.out.println(System.currentTimeMillis() - t);
 //    Timer.print();
     System.out.println("Finished");
 
-    Scanner scanner = new Scanner(System.in);
+//    Scanner scanner = new Scanner(System.in);
     do {
 //      int[] userInput = {scanner.nextInt(), scanner.nextInt()};
 //      if (userInput[0] == -1 || userInput[1] == -1) {
@@ -51,7 +51,7 @@ public class cmdGame {
               board.scoreBoard(Board.WHITE, 1),
               board.scoreBoard(Board.BLACK, 1)
       );
-      System.out.print("Press enter to continue");
+//      System.out.print("Press enter to continue");
 //    scanner.nextLine();
 
       System.out.println("White○:");
@@ -65,7 +65,7 @@ public class cmdGame {
               board.scoreBoard(Board.WHITE, 1),
               board.scoreBoard(Board.BLACK, 1)
       );
-      System.out.print("Press enter to continue");
+//      System.out.print("Press enter to continue");
 //      scanner.nextLine();
     } while (board.isEnd() == Board.CONTINUE);
     Timer.print();

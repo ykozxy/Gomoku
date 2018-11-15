@@ -131,7 +131,7 @@ public class Board {
       }
     }
 
-    this.board = data;
+    this.board = data.clone();
     if (playerTurn != WHITE && playerTurn != BLACK) {
       throw new ValueOutOfRangeException();
     }
@@ -441,15 +441,26 @@ public class Board {
    * @return 单点得分
    */
   public int scorePoint(int row, int column, int player, int... direction) {
+//    TODO: 现在算分有问题
     Timer.startRecord("scorePoint");
     int emptyPosition, count, block;
     int score = 0;
     boolean horizontal = false, vertical = false, diagonal1 = false, diagonal2 = false;
     for (int i : direction) {
-      if (i == 1) horizontal = true;
-      else if (i == 2) vertical = true;
-      else if (i == 3) diagonal1 = true;
-      else if (i == 4) diagonal2 = true;
+      switch (i) {
+        case 1:
+          horizontal = true;
+          break;
+        case 2:
+          vertical = true;
+          break;
+        case 3:
+          diagonal1 = true;
+          break;
+        case 4:
+          diagonal2 = true;
+          break;
+      }
     }
 
 //    Horizontal
@@ -471,10 +482,9 @@ public class Board {
                   emptyPosition == -1 &&  /* No empty has not been recorded */
                           i < 14 &&  /* Have at least 1 block to the boarder */
                           board[row][i + 1] == player  /* Has chess after empty space */
-          ) emptyPosition = i - column;
+          ) emptyPosition = count;
           else break;
-        } else if (chess == player)
-          count++;
+        } else if (chess == player) count++;
         else {
           block++;
           break;
@@ -518,7 +528,7 @@ public class Board {
         int chess = board[i][column];
         if (chess == EMPTY) {
           if (emptyPosition == -1 && i < 14 && board[i + 1][column] == player)
-            emptyPosition = i - column;
+            emptyPosition = count;
           else break;
         } else if (chess == player)
           count++;
@@ -564,7 +574,7 @@ public class Board {
         int chess = board[x][y];
         if (chess == EMPTY) {
           if (emptyPosition == -1 && x < 14 && y < 14 && board[x + 1][y + 1] == player)
-            emptyPosition = i - column;
+            emptyPosition = count;
           else
             break;
         } else if (chess == player)
@@ -613,7 +623,7 @@ public class Board {
         int chess = board[x][y];
         if (chess == EMPTY) {
           if (emptyPosition == -1 && x < 14 && y > 0 && board[x + 1][y - 1] == player)
-            emptyPosition = i - column;
+            emptyPosition = count;
           else
             break;
         } else if (chess == player)
@@ -673,8 +683,7 @@ public class Board {
             blockOne = Board.STANDARDS.get("1-");
 //    No empty space
     if (emptyPosition <= 0) {
-      if (count >= 5)
-        return five;
+      if (count >= 5) return five;
       if (block == 0) {
         switch (count) {
           case 1:
@@ -701,8 +710,7 @@ public class Board {
 
     } else if (emptyPosition == 1 || emptyPosition == count - 1) {
 //      Empty on the first position
-      if (count >= 6)
-        return five;
+      if (count >= 6) return five;
       if (block == 0) {
         switch (count) {
           case 2:
@@ -746,22 +754,18 @@ public class Board {
           case 3:
             return blockThree;
           case 4:
-            return blockFour;
           case 5:
             return blockFour;
           case 6:
             return four;
         }
       } else if (block == 2) {
-        if (count == 4 || count == 5 || count == 6) {
-          return blockFour;
-        }
+        if (count == 4 || count == 5 || count == 6) return blockFour;
       }
 
     } else if (emptyPosition == 3 || emptyPosition == count - 3) {
 //      Empty on the third position
-      if (count >= 8)
-        return five;
+      if (count >= 8) return five;
       if (block == 0) {
         switch (count) {
           case 4:
@@ -792,19 +796,13 @@ public class Board {
       }
     } else if (emptyPosition == 4 || emptyPosition == count - 4) {
 //      Empty on the fourth position
-      if (count > 9)
-        return five;
-      if (block == 0 && (count == 5 || count == 6 || count == 7 || count == 8))
-        return four;
+      if (count > 9) return five;
+      if (block == 0 && (count == 5 || count == 6 || count == 7 || count == 8)) return four;
       else if (block == 1) {
-        if (count == 4 || count == 5 || count == 6 || count == 7)
-          return blockFour;
-        else if (count == 8)
-          return four;
-      } else if (block == 2 && count == 5 || count == 6 || count == 7 || count == 8)
-        return blockFour;
-    } else if (emptyPosition == 5 || emptyPosition == count - 5)
-      return five;
+        if (count == 4 || count == 5 || count == 6 || count == 7) return blockFour;
+        else if (count == 8) return four;
+      } else if (block == 2 && count == 5 || count == 6 || count == 7 || count == 8) return blockFour;
+    } else if (emptyPosition == 5 || emptyPosition == count - 5) return five;
     return 0;
   }
 
