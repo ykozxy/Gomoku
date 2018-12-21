@@ -78,7 +78,7 @@ public class Board {
 	 * Value: A new map stores different scores for different players at this situation
 	 * Usage: boardScoreCache.get(int boardHashCode).get(int playerNumber) -> int score
 	 */
-	Map<Integer, Map<Integer, Integer>> boardScoreCache = new HashMap<>();
+	Map<Integer, Map<Integer, Integer>> boardScoreCache = new LinkedHashMap<>();
 	/**
 	 * 单点得分缓存，用于加速单点评分
 	 * 当附近的位置发生变动时（新下棋，悔棋），会有函数更新其中的得分
@@ -183,7 +183,8 @@ public class Board {
 	}
 
 	/**
-	 * 下棋，不记录当前操作 这个方法多是在ai计算和调试时用，真正下棋需要用另一个setChess方法
+	 * 下棋，不记录当前操作
+	 * 这个方法多是在ai计算和调试时用，真正下棋需要用另一个setChess方法
 	 *
 	 * @param row    行数
 	 * @param column 列数
@@ -198,8 +199,8 @@ public class Board {
 			throw new ValueOutOfRangeException();
 		}
 		chessCount += (player == EMPTY) ? -1 : 1;
-		updateScore(row, column);
 		board[row][column] = player;
+		updateScore(row, column);
 	}
 
 	/**
@@ -220,8 +221,8 @@ public class Board {
 		}
 
 		chessCount++;
-		updateScore(row, column);
 		board[row][column] = playerTurn;
+		updateScore(row, column);
 
 		// 记录操作
 		if (record) {
@@ -240,7 +241,7 @@ public class Board {
 	 * @param column 列数
 	 */
 	public void updateScore(int row, int column) {
-		Timer.startRecord("Update");
+		// Timer.startRecord("Update");
 
 		// 更新分数的范围
 		final int range = 6;
@@ -250,7 +251,7 @@ public class Board {
 			if (row < 0 || row > 14 || y < 0 || y > 14)
 				continue;
 			// 这里计算的点只更新横向分数
-			update(row, column, 1);
+			update(row, y, 1);
 		}
 		// 纵向查找
 		for (int i = -range; i <= range; i++) {
@@ -258,7 +259,7 @@ public class Board {
 			if (x < 0 || x > 14 || column < 0 || column > 14)
 				continue;
 			// 同理只计算纵向
-			update(row, column, 2);
+			update(x, column, 2);
 		}
 		// 斜向查找（左上->右下）
 		for (int i = -range; i <= range; i++) {
@@ -266,7 +267,7 @@ public class Board {
 			if (x < 0 || x > 14 || y < 0 || y > 14)
 				continue;
 			// 同上
-			update(row, column, 3);
+			update(x, y, 3);
 		}
 		// 斜向查找（右上->左下）
 		for (int i = -range; i <= range; i++) {
@@ -274,9 +275,9 @@ public class Board {
 			if (x < 0 || x > 14 || y < 0 || y > 14)
 				continue;
 			// 同上
-			update(row, column, 4);
+			update(x, y, 4);
 		}
-		Timer.endRecord("Update");
+		// Timer.endRecord("Update");
 	}
 
 	/**
@@ -286,6 +287,7 @@ public class Board {
 	 * @param column    列数
 	 * @param direction 更新分数的方向（1, 2, 3, 4 分别是横纵斜线）
 	 */
+	@SuppressWarnings("Duplicates")
 	private void update(int row, int column, int direction) {
 		int player = board[row][column];
 		// 新下黑子或变为空位都需要计算黑棋
@@ -312,20 +314,23 @@ public class Board {
 	 * @return 整个棋盘的分数
 	 */
 	public int scoreBoard(int player, double weight) {
-		Timer.startRecord("scoreBoard");
+		// Timer.startRecord("scoreBoard");
 
 		// 计算当前棋盘的哈希码
 		int hashCode = Arrays.deepHashCode(board);
 		// 若缓存中有当前棋盘则直接返回分数
-		if (boardScoreCache.containsKey(hashCode) && boardScoreCache.get(hashCode).containsKey(player))
-			return boardScoreCache.get(hashCode).get(player);
+		Map<Integer, Integer> b = boardScoreCache.get(hashCode);
+		if (b != null && b.containsKey(player))
+			return b.get(player);
 		int result = _scoreBoard(player, weight);
 		// 将结果添加到缓存
-		if (!boardScoreCache.containsKey(hashCode))
-			boardScoreCache.put(hashCode, new HashMap<>());
-		boardScoreCache.get(hashCode).put(player, result);
+		if (b == null) {
+			b = new HashMap<>();
+			boardScoreCache.put(hashCode, b);
+		}
+		b.put(player, result);
 
-		Timer.endRecord("scoreBoard");
+		// Timer.endRecord("scoreBoard");
 		return result;
 	}
 
@@ -356,82 +361,6 @@ public class Board {
 	}
 
 	/**
-	 * 旧版全局评分
-	 *
-	 * @param player the player number
-	 * @return the score of the board
-	 */
-	private int _scoreBoardOld(int player) {
-		int score = 0;
-		for (int[] o_row : splitBoard()) {
-			int[] row = new int[o_row.length + 2];
-			row[0] = player == BLACK ? WHITE : BLACK;
-			row[row.length - 1] = player == BLACK ? WHITE : BLACK;
-			System.arraycopy(o_row, 0, row, 1, o_row.length);
-			int chessCount = 0;
-			int emptyCount = 0;
-			boolean continuity = true;
-			for (int i = 0; i < row.length; i++) {
-				int chess = row[i];
-
-				if (chess == player) {
-					if (++chessCount == 5) {
-						score += Board.STANDARDS.get("5+");
-						chessCount = 0;
-						emptyCount = 0;
-						continuity = true;
-					} else if (emptyCount != 0)
-						continuity = false;
-
-				} else if (chess == EMPTY) {
-					if (chessCount == 0) {
-						continue;
-					}
-					if (++emptyCount == 2) {
-						score += Board.STANDARDS.get(String.format("%d%s", chessCount,
-										(continuity && row[i - chessCount - emptyCount] == EMPTY) ? "+" : "-"));
-						chessCount = 0;
-						emptyCount = 0;
-						continuity = true;
-					}
-
-				} else {
-					if (chessCount != 0) {
-						// Case x 1 1 1 0 2
-						if (continuity && emptyCount != 0) {
-							if (row[i - chessCount - emptyCount - 1] == EMPTY)
-								score += Board.STANDARDS.get(String.format("%d+", chessCount));
-							else
-								score += Board.STANDARDS.get(String.format("%d-", chessCount));
-						}
-						// Case x 1 1 1 2
-						else {
-							// Case is continue
-							if (continuity && row[i - chessCount - 1] == EMPTY)
-								score += Board.STANDARDS.get(String.format("%d-", chessCount));
-							else if (!continuity) {
-								if (row[i - chessCount - 2] != EMPTY) {
-									if (chessCount == 4)
-										score += Board.STANDARDS.get("4-");
-								} else {
-									score += Board.STANDARDS.get(String.format("%d-", chessCount));
-								}
-							}
-						}
-					}
-					chessCount = 0;
-					emptyCount = 0;
-					continuity = true;
-				}
-			}
-			if (chessCount != 0) {
-				score += Board.STANDARDS.get(String.format("%d-", chessCount));
-			}
-		}
-		return score;
-	}
-
-	/**
 	 * 单点评分（计算）
 	 *
 	 * @param row       行号
@@ -440,9 +369,9 @@ public class Board {
 	 * @param direction 评分方向（1为横向、2为竖直、3为左上->右下、4为右上->左下）
 	 * @return 单点得分
 	 */
+	@SuppressWarnings("Duplicates")
 	public int scorePoint(int row, int column, int player, int... direction) {
-		// TODO: 现在算分有问题
-		Timer.startRecord("scorePoint");
+		// Timer.startRecord("scorePoint");
 		int emptyPosition, count, block;
 		int score = 0;
 		boolean horizontal = false, vertical = false, diagonal1 = false, diagonal2 = false;
@@ -555,7 +484,6 @@ public class Board {
 						break;
 				} else if (chess == player) {
 					count++;
-					emptyPosition += (emptyPosition == -1) ? 0 : 1;
 				} else {
 					block++;
 					break;
@@ -664,7 +592,7 @@ public class Board {
 			score += calculateScore(emptyPosition, count, block);
 		}
 
-		Timer.endRecord("scorePoint");
+		// Timer.endRecord("scorePoint");
 		return score;
 	}
 
@@ -871,7 +799,7 @@ public class Board {
 	 * @return 整数状态码 (BLACK, WHITE, TIE, CONTINUE)
 	 */
 	public int isEnd() {
-		Timer.startRecord("isEnd");
+		// Timer.startRecord("isEnd");
 		boolean jump = false;
 		for (int[] line : board) {
 			for (int i : line) {
@@ -882,7 +810,7 @@ public class Board {
 			}
 		}
 		if (!jump) {
-			Timer.endRecord("isEnd");
+			// Timer.endRecord("isEnd");
 			return TIE;
 		}
 		for (int[] line : splitBoard()) {
@@ -896,13 +824,13 @@ public class Board {
 					if (i == EMPTY)
 						continue;
 					if (++count == 5) {
-						Timer.endRecord("isEnd");
+						// Timer.endRecord("isEnd");
 						return current;
 					}
 				}
 			}
 		}
-		Timer.endRecord("isEnd");
+		// Timer.endRecord("isEnd");
 		return CONTINUE;
 	}
 

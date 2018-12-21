@@ -1,4 +1,5 @@
 import java.util.Arrays;
+import java.util.Scanner;
 
 /**
  * The type Cmd game.
@@ -9,64 +10,41 @@ public class cmdGame {
 	 *
 	 * @param args the input arguments
 	 */
+	@SuppressWarnings("Duplicates")
 	public static void main(String[] args) {
-		Timer.valid = true;
+		Timer.valid = false;
 		Board board = new Board();
 		AI aiBlack = new AI(board, Board.BLACK, .8);
 		AI aiWhite = new AI(board, Board.WHITE, .8);
-		System.out.println("Initializing...");
-		long t = System.currentTimeMillis();
-		aiBlack.initialize(3, false);
-		System.out.println(System.currentTimeMillis() - t);
-//    Timer.print();
-		System.out.println("Finished");
 
-//    Scanner scanner = new Scanner(System.in);
+		Scanner scanner = new Scanner(System.in);
+		System.out.println(board);
+
 		do {
-//      int[] userInput = {scanner.nextInt(), scanner.nextInt()};
-//      if (userInput[0] == -1 || userInput[1] == -1) {
-//        board.withdraw();
-//        board.withdraw();
-//        System.out.println("Withdraw!");
-//        System.out.println(board);
-//        continue;
-//      }
-//      try {
-//        board.setChess(userInput[0], userInput[1], true);
-//      } catch (RedundantChessException | ValueOutOfRangeException e) {
-//        e.printStackTrace();
-//        continue;
-//      }
-//
-//      System.out.println(board);
-
-			System.out.println("Black●:");
-			System.out.println("Thinking...");
-			int[] aiInput = aiBlack.iterativeDeepening(0);
-			System.out.println(Arrays.toString(aiInput));
-			board.setChess(aiInput[0], aiInput[1], true);
+//			System.out.println("Black●:");
+//			System.out.println("Thinking...");
+//			int[] aiInput = aiBlack.iterativeDeepening(3, false);
+//			System.out.println("boardScoreCache = " + board.boardScoreCache.size());
+//			System.out.println(Arrays.toString(aiInput));
+//			board.setChess(aiInput[0], aiInput[1], true);
+			System.out.println("Please Input: ");
+			int x = scanner.nextInt(), y = scanner.nextInt();
+			if (x < 0 || y < 0 || x > 14 || y > 14 || board.getBoard()[x][y] != Board.EMPTY) continue;
+			board.setChess(x, y, true);
 			System.out.println(board);
-			System.out.printf(
-							"White: %d\nBlack: %d\n\n",
-							board.scoreBoard(Board.WHITE, 1),
-							board.scoreBoard(Board.BLACK, 1)
-			);
-//      System.out.print("Press enter to continue");
-//    scanner.nextLine();
+			System.out.printf("White: %d\nBlack: %d\n\n", board.scoreBoard(Board.WHITE, 1),
+							board.scoreBoard(Board.BLACK, 1));
+			if (board.isEnd() != Board.CONTINUE) break;
 
 			System.out.println("White○:");
 			System.out.println("Thinking...");
-			aiInput = aiWhite.iterativeDeepening(0);
+			int[] aiInput = aiWhite.iterativeDeepening(5, false);
+			System.out.println("boardScoreCache = " + board.boardScoreCache.size());
 			System.out.println(Arrays.toString(aiInput));
 			board.setChess(aiInput[0], aiInput[1], true);
 			System.out.println(board);
-			System.out.printf(
-							"White: %d\nBlack: %d\n\n",
-							board.scoreBoard(Board.WHITE, 1),
-							board.scoreBoard(Board.BLACK, 1)
-			);
-//      System.out.print("Press enter to continue");
-//      scanner.nextLine();
+			System.out.printf("White: %d\nBlack: %d\n\n", board.scoreBoard(Board.WHITE, 1),
+							board.scoreBoard(Board.BLACK, 1));
 		} while (board.isEnd() == Board.CONTINUE);
 		Timer.print();
 		System.out.println();

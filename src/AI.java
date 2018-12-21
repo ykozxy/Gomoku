@@ -114,9 +114,9 @@ public class AI {
 	 * @param player the player number
 	 * @return List contain all valid points in order
 	 */
-	@SuppressWarnings("ConstantConditions")
+	@SuppressWarnings({"ConstantConditions", "Duplicates"})
 	public List<int[]> generatePossiblePoints(int player) {
-		Timer.startRecord("generatePossiblePoints");
+		// Timer.startRecord("generatePossiblePoints");
 
 		List<int[]> five = new ArrayList<>();
 		List<int[]> four = new ArrayList<>();
@@ -180,29 +180,29 @@ public class AI {
 
 		if (five.size() > 0) {
 			Collections.shuffle(five);
-			Timer.endRecord("generatePossiblePoints");
+			// Timer.endRecord("generatePossiblePoints");
 			return five;
 		}
 
 		if (four.size() > 0) {
 			Collections.shuffle(four);
-			Timer.endRecord("generatePossiblePoints");
+			// Timer.endRecord("generatePossiblePoints");
 			return four;
 		}
 		if (eFour.size() > 0) {
 			Collections.shuffle(eFour);
-			Timer.endRecord("generatePossiblePoints");
+			// Timer.endRecord("generatePossiblePoints");
 			return eFour;
 		}
 
 		if (eFour.size() > 0 && blockedFour.size() == 0) {
 			Collections.shuffle(eFour);
-			Timer.endRecord("generatePossiblePoints");
+			// Timer.endRecord("generatePossiblePoints");
 			return eFour;
 		}
 		if (four.size() > 0 && eBlockedFour.size() == 0) {
 			Collections.shuffle(four);
-			Timer.endRecord("generatePossiblePoints");
+			// Timer.endRecord("generatePossiblePoints");
 			return four;
 		}
 
@@ -216,7 +216,7 @@ public class AI {
 		totalBlockFour.addAll(eBlockedFour);
 		if (totalFour.size() > 0) {
 			totalFour.addAll(totalBlockFour);
-			Timer.endRecord("generatePossiblePoints");
+			// Timer.endRecord("generatePossiblePoints");
 			return totalFour;
 		}
 
@@ -232,7 +232,7 @@ public class AI {
 		result.addAll(eThree);
 
 		if (doubleThree.size() > 0 || eDoubleThree.size() > 0) {
-			Timer.endRecord("generatePossiblePoints");
+			// Timer.endRecord("generatePossiblePoints");
 			return result;
 		}
 
@@ -249,17 +249,17 @@ public class AI {
 		}
 
 		if (result.size() > 20) {
-			Timer.endRecord("generatePossiblePoints");
+			// Timer.endRecord("generatePossiblePoints");
 
 			return result.subList(0, 20);
 		} else {
-			Timer.endRecord("generatePossiblePoints");
+			// Timer.endRecord("generatePossiblePoints");
 			return result;
 		}
 	}
 
 	private boolean hasNeighbor(int row, int column, int neighborDist, int count) {
-		Timer.startRecord("hasNeighbor");
+		// Timer.startRecord("hasNeighbor");
 		for (int i = (row - neighborDist >= 0 ? row - neighborDist : 0);
 		     i < (row + neighborDist <= 14 ? row + neighborDist : 14);
 		     i++) {
@@ -268,13 +268,13 @@ public class AI {
 			     j++) {
 				if (board.getBoard()[i][j] != EMPTY) {
 					if (--count == 0) {
-						Timer.endRecord("hasNeighbor");
+						// Timer.endRecord("hasNeighbor");
 						return true;
 					}
 				}
 			}
 		}
-		Timer.endRecord("hasNeighbor");
+		// Timer.endRecord("hasNeighbor");
 		return false;
 	}
 
@@ -285,15 +285,20 @@ public class AI {
 	 * @param depth the depth of search
 	 * @return the point ai choose
 	 */
-	public int[] iterativeDeepening(int depth) {
+	public int[] iterativeDeepening(int depth, boolean iter) {
 		if (depth == 0) {
 			int count = board.count();
-			depth = 7;
-			if (count >= 6) depth = 9;
-//      if (count >= 12) depth = 11;
+			depth = 5;
+			if (count >= 6) depth = 7;
+			if (count >= 12) depth = 9;
 		}
 
 		List<int[]> candidates = new ArrayList<>();
+		if (!iter) {
+			minMaxSearch(depth, candidates);
+			return candidates.get(0);
+		}
+
 		boolean goodSituation = false;
 		for (int i = 2; i <= depth; i += 2) {
 			int result = minMaxSearch(i, candidates);
@@ -310,26 +315,15 @@ public class AI {
 	 * @return the point ai choose
 	 */
 	int minMaxSearch(int depth, List<int[]> outcome) {
-//    If the board is empty
-		boolean find = false;
-		for (int[] row : board.getBoard()) {
-			for (int i : row) {
-				if (i != EMPTY) {
-					find = true;
-					break;
-				}
-			}
-			if (find) {
-				break;
-			}
-		}
-		if (!find) {
+		board.boardScoreCache.clear();
+		if (board.count() == 0) {
 			outcome.add(new int[]{7, 7});
 			return 0;
 		}
 
-		int maxV = -999999999;
+		int maxV = Integer.MIN_VALUE;
 		List<int[]> points = generatePossiblePoints(aiNum);
+		points = points.size() > 10 ? points.subList(0, 10) : points;
 		List<int[]> candidates = new ArrayList<>();
 		int c = 1;
 		System.out.print(points.size() + ": ");
@@ -358,14 +352,15 @@ public class AI {
 	}
 
 	int minSearch(int deep, int alpha, int beta, Board board) {
-		Timer.startRecord("minSearch");
+		// Timer.startRecord("minSearch");
 		int score = board.scoreBoard(aiNum == WHITE ? BLACK : WHITE, weight);
 		if (deep < 0 || board.isEnd() != CONTINUE) {
-			Timer.endRecord("minSearch");
+			// Timer.endRecord("minSearch");
 			return score;
 		}
 
 		List<int[]> points = generatePossiblePoints(aiNum == WHITE ? BLACK : WHITE);
+		points = points.size() > 10 ? points.subList(0, 10) : points;
 		for (int[] currentPoint : points) {
 			board.setChess(currentPoint[0], currentPoint[1], (aiNum == BLACK) ? WHITE : BLACK);
 			int currentValue = maxSearch(deep - 1, alpha, beta, board);
@@ -375,19 +370,20 @@ public class AI {
 			if (beta < alpha)
 				break;
 		}
-		Timer.endRecord("minSearch");
+		// Timer.endRecord("minSearch");
 		return beta;
 	}
 
 	private int maxSearch(int deep, int alpha, int beta, Board board) {
-		Timer.startRecord("maxSearch");
+		// Timer.startRecord("maxSearch");
 		int score = board.scoreBoard(aiNum, weight);
 		if (deep < 0 || board.isEnd() != CONTINUE) {
-			Timer.endRecord("maxSearch");
+			// Timer.endRecord("maxSearch");
 			return score;
 		}
 
 		List<int[]> points = generatePossiblePoints(aiNum);
+		points = points.size() > 10 ? points.subList(0, 10) : points;
 		for (int[] currentPoint : points) {
 			board.setChess(currentPoint[0], currentPoint[1], aiNum);
 			int currentValue = minSearch(deep - 1, alpha, beta, board);
@@ -397,13 +393,14 @@ public class AI {
 			if (beta < alpha)
 				break;
 		}
-		Timer.endRecord("maxSearch");
+		// Timer.endRecord("maxSearch");
 		return alpha;
 	}
 
 	public List<int[]> vcx(int depth) {
 		List<int[]> outcome = new ArrayList<>();
 //		TODO
+
 		return outcome;
 	}
 
