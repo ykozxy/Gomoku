@@ -330,7 +330,7 @@ public class AI {
 		for (int[] point : points) {
 			System.out.printf("%d ", c++);
 			board.setChess(point[0], point[1], aiNum);
-			int curV = minSearch(
+			int curV = (int) minSearch(
 							depth,
 							Integer.MIN_VALUE,
 							Integer.MAX_VALUE,
@@ -351,7 +351,7 @@ public class AI {
 		return maxV;
 	}
 
-	int minSearch(int deep, int alpha, int beta, Board board) {
+	double minSearch(int deep, double alpha, double beta, Board board) {
 		// Timer.startRecord("minSearch");
 		int score = board.scoreBoard(aiNum == WHITE ? BLACK : WHITE, weight);
 		if (deep < 0 || board.isEnd() != CONTINUE) {
@@ -363,7 +363,7 @@ public class AI {
 		points = points.size() > 10 ? points.subList(0, 10) : points;
 		for (int[] currentPoint : points) {
 			board.setChess(currentPoint[0], currentPoint[1], (aiNum == BLACK) ? WHITE : BLACK);
-			int currentValue = maxSearch(deep - 1, alpha, beta, board);
+			double currentValue = maxSearch(deep - 1, alpha, beta, board) * (1 + deep / 10.);
 			board.setChess(currentPoint[0], currentPoint[1], Board.EMPTY);
 			beta = Math.min(beta, currentValue);
 //      Prune
@@ -374,7 +374,7 @@ public class AI {
 		return beta;
 	}
 
-	private int maxSearch(int deep, int alpha, int beta, Board board) {
+	private double maxSearch(int deep, double alpha, double beta, Board board) {
 		// Timer.startRecord("maxSearch");
 		int score = board.scoreBoard(aiNum, weight);
 		if (deep < 0 || board.isEnd() != CONTINUE) {
@@ -386,7 +386,7 @@ public class AI {
 		points = points.size() > 10 ? points.subList(0, 10) : points;
 		for (int[] currentPoint : points) {
 			board.setChess(currentPoint[0], currentPoint[1], aiNum);
-			int currentValue = minSearch(deep - 1, alpha, beta, board);
+			double currentValue = minSearch(deep - 1, alpha, beta, board) * (1 + deep / 10.);
 			board.setChess(currentPoint[0], currentPoint[1], Board.EMPTY);
 			alpha = Math.max(alpha, currentValue);
 //      Prune
