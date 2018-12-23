@@ -127,6 +127,8 @@ public class AI {
 	@SuppressWarnings({"ConstantConditions", "Duplicates"})
 	public List<int[]> generatePossiblePoints(short player) {
 		// Timer.startRecord("generatePossiblePoints");
+		List<int[]> vcxResult = vcx();
+		if (!vcxResult.isEmpty()) return vcxResult;
 
 		List<int[]> five = new ArrayList<>();
 		List<int[]> four = new ArrayList<>();
@@ -249,7 +251,7 @@ public class AI {
 
 		Collections.shuffle(two);
 		Collections.shuffle(eTwo);
-		if (two.size() > 0 && eThree.size() > 0) {
+		if (two.size() > 0 || eTwo.size() > 0) {
 			result.addAll(two);
 			result.addAll(eTwo);
 		} else {
@@ -312,7 +314,7 @@ public class AI {
 			int count = board.count();
 			depth = 5;
 			if (count >= 6) depth = 7;
-			if (count >= 12) depth = 9;
+//			if (count >= 12) depth = 9;
 		}
 
 		List<int[]> candidates = new ArrayList<>();
@@ -348,6 +350,10 @@ public class AI {
 		List<int[]> points = generatePossiblePoints(aiNum);
 //		若候选点太多，则只计算前十个
 		points = points.size() > 10 ? points.subList(0, 10) : points;
+		if (points.size() == 1) {
+			outcome.add(points.get(0));
+			return 0;
+		}
 		List<int[]> candidates = new ArrayList<>();
 		int c = 1;
 		System.out.print(points.size() + ": ");
@@ -446,13 +452,12 @@ public class AI {
 	 * 算杀
 	 * 尚未决定是否需要实现
 	 *
-	 * @param depth 算杀深度
 	 * @return 候选名单
 	 */
-	@SuppressWarnings("UnnecessaryLocalVariable")
-	public List<int[]> vcx(int depth) {
+	public List<int[]> vcx() {
 		List<int[]> outcome = new ArrayList<>();
 //		TODO
+
 
 		return outcome;
 	}
