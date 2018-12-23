@@ -68,15 +68,15 @@ public class Board {
 	 * 棋盘得分缓存,用于加速计算棋盘估分
 	 * 每一次计算棋盘的得分都会缓存在此，棋盘以哈希码表示
 	 * 键是棋盘的哈希码；
-	 * 值是一个新的映射表，储存不同玩家在此情况下的分数
-	 * 用法：boardScoreCache.get(int boardHashCode).get(int playerNumber) -> int score
+	 * 值是一个Score类，其中储存单点的分和双方总分
+	 * 用法：boardScoreCache.get(int boardHashCode) -> Score object
 	 * <p>
 	 * Cache of scores of different boards
 	 * Each time the score of the board is cached here (when newly calculated)
 	 * The board is represented by its hash code
 	 * Key: Hashcode of board
-	 * Value: A new map stores different scores for different players at this situation
-	 * Usage: boardScoreCache.get(int boardHashCode).get(int playerNumber) -> int score
+	 * Value: A score object storing the pointScoreCache and total score of both players
+	 * Usage: boardScoreCache.get(int boardHashCode) -> Score object
 	 */
 	Map<Integer, Score> boardScoreCache = new HashMap<>();
 	/**
@@ -86,10 +86,13 @@ public class Board {
 	 * 水平：1
 	 * 竖直：2
 	 * 两个对角：3,4
-	 * 用法：pointScoreCache.get(int player)[int direction][int row][int column] -> int score
+	 * 用法：pointScoreCache.get(short player)[int direction][int row][int column] -> int score
 	 */
 	Map<Short, int[][][]> pointScoreCache = Map.of(BLACK, new int[5][15][15],
 					WHITE, new int[5][15][15]);
+	/**
+	 * 当前棋盘上棋子总数
+	 */
 	int chessCount = 0;
 	/**
 	 * 主要棋盘
@@ -225,10 +228,7 @@ public class Board {
 		updateScore(row, column);
 
 		// 记录操作
-		if (record) {
-			int[] temp = {row, column};
-			this.operations.add(temp);
-		}
+		if (record) this.operations.add(new int[]{row, column});
 
 		// 转换玩家
 		playerTurn = (playerTurn == BLACK) ? WHITE : BLACK;
@@ -243,7 +243,7 @@ public class Board {
 	public void updateScore(int row, int column) {
 		// Timer.startRecord("Update");
 
-//		If current chessboard is in the cache, then set pointScoreCache to the stored value
+//		如果当前棋盘已经在缓存中，则直接将 pointScoreCache 更改为缓存中的值
 		if (boardScoreCache.containsKey(Arrays.hashCode(board))) {
 			pointScoreCache = boardScoreCache.get(Arrays.hashCode(board)).pointScoreCache;
 			return;
@@ -272,7 +272,7 @@ public class Board {
 			int x = row + i, y = column + i;
 			if (x < 0 || x > 14 || y < 0 || y > 14)
 				continue;
-			// 同上
+			// 同上，只记录斜向
 			update(x, y, 3);
 		}
 		// 斜向查找（右上->左下）
@@ -280,7 +280,7 @@ public class Board {
 			int x = row + i, y = column - i;
 			if (x < 0 || x > 14 || y < 0 || y > 14)
 				continue;
-			// 同上
+			// 同上，只记录斜向
 			update(x, y, 4);
 		}
 		// Timer.endRecord("Update");
@@ -317,7 +317,7 @@ public class Board {
 	 *
 	 * @param player 要打分的棋子
 	 * @param weight 打分权重（权重越大，算分越偏向于防守） 默认情况是建议 weight = 1
-	 * @return 整个棋盘的分数
+	 * @return 整个棋盘的分数 int
 	 */
 	public int scoreBoard(short player, double weight) {
 		// Timer.startRecord("scoreBoard");
@@ -373,10 +373,10 @@ public class Board {
 	 * @param column    列数
 	 * @param player    要评分的棋子
 	 * @param direction 评分方向（1为横向、2为竖直、3为左上->右下、4为右上->左下）
-	 * @return 单点得分
+	 * @return 单点得分 int
 	 */
 	@SuppressWarnings("Duplicates")
-	public int scorePoint(int row, int column, int player, int... direction) {
+	public int scorePoint(int row, int column, short player, int... direction) {
 		// Timer.startRecord("scorePoint");
 		int emptyPosition, count, block;
 		int score = 0;
@@ -807,7 +807,7 @@ public class Board {
 	/**
 	 * 计算当前棋盘上的棋子数量
 	 *
-	 * @return 棋子数量
+	 * @return 棋子数量 int
 	 */
 	public int count() {
 		int num = 0;
@@ -935,7 +935,7 @@ public class Board {
 	/**
 	 * 分离棋盘 分别输出棋盘中每列、每行、和每个对角线
 	 *
-	 * @return 所有的行、列、对角线
+	 * @return 所有的行 、列、对角线
 	 */
 	public ArrayList<short[]> splitBoard() {
 		ArrayList<short[]> out = new ArrayList<>();
@@ -985,19 +985,43 @@ public class Board {
 		return String.valueOf(str);
 	}
 
+	/**
+	 * Score 类
+	 * 储存一个棋盘的相关分数
+	 */
 	class Score {
+		/**
+		 * 当前棋盘的 pointScoreCache，直接是原来的 clone
+		 */
 		Map<Short, int[][][]> pointScoreCache;
 		private int blackScore, whiteScore;
 
+		/**
+		 * Instantiates a new Score.
+		 *
+		 * @param pointScoreCache the point score cache
+		 */
 		Score(Map<Short, int[][][]> pointScoreCache) {
 			this.blackScore = this.whiteScore = -1;
 			this.pointScoreCache = pointScoreCache;
 		}
 
+		/**
+		 * Gets score.
+		 *
+		 * @param player the player number
+		 * @return the score
+		 */
 		int getScore(short player) {
 			return (player == BLACK) ? blackScore : whiteScore;
 		}
 
+		/**
+		 * Sets score.
+		 *
+		 * @param player the player number
+		 * @param score  the score
+		 */
 		void setScore(short player, int score) {
 			if (player == BLACK) blackScore = score;
 			else whiteScore = score;
