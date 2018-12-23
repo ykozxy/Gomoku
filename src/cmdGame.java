@@ -18,19 +18,23 @@ public class cmdGame {
 		AI aiWhite = new AI(board, Board.WHITE, .8);
 
 		Scanner scanner = new Scanner(System.in);
+		boolean pvp = scanner.next().toLowerCase().equals("y");
 		System.out.println(board);
 
 		do {
-//			System.out.println("Black●:");
-//			System.out.println("Thinking...");
-//			int[] aiInput = aiBlack.iterativeDeepening(3, false);
-//			System.out.println("boardScoreCache = " + board.boardScoreCache.size());
-//			System.out.println(Arrays.toString(aiInput));
-//			board.setChess(aiInput[0], aiInput[1], true);
-			System.out.println("Please Input: ");
-			int x = scanner.nextInt(), y = scanner.nextInt();
-			if (x < 0 || y < 0 || x > 14 || y > 14 || board.getBoard()[x][y] != Board.EMPTY) continue;
-			board.setChess(x, y, true);
+			if (pvp) {
+				System.out.println("Please Input: ");
+				int x = scanner.nextInt(), y = scanner.nextInt();
+				if (x < 0 || y < 0 || x > 14 || y > 14 || board.getBoard()[x][y] != Board.EMPTY) continue;
+				board.setChess(x, y, true);
+			} else {
+				System.out.println("Black●:");
+				System.out.println("Thinking...");
+				int[] aiInput = aiBlack.iterativeDeepening(3, false);
+				System.out.println("boardScoreCache = " + board.boardScoreCache.size());
+				System.out.println(Arrays.toString(aiInput));
+				board.setChess(aiInput[0], aiInput[1], true);
+			}
 			System.out.println(board);
 			System.out.printf("White: %d\nBlack: %d\n\n", board.scoreBoard(Board.WHITE, 1),
 							board.scoreBoard(Board.BLACK, 1));

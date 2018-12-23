@@ -13,22 +13,22 @@ public class AI {
 	/**
 	 * The constant EMPTY.
 	 */
-	private static final int EMPTY = 10000;
+	private static final short EMPTY = 10000;
 	/**
 	 * The constant BLACK.
 	 */
-	private static final int BLACK = 10001;
+	private static final short BLACK = 10001;
 	/**
 	 * The constant WHITE.
 	 */
-	private static final int WHITE = 10002;
+	private static final short WHITE = 10002;
 	/**
 	 * The constant CONTINUE.
 	 */
 	private static final int CONTINUE = 10004;
 	private static double weight;
 	Board board;
-	int aiNum;
+	short aiNum;
 
 
 	/**
@@ -38,7 +38,7 @@ public class AI {
 	 * @param aiNum  the player number of AI
 	 * @param weight the weight
 	 */
-	public AI(Board board, int aiNum, double weight) {
+	public AI(Board board, short aiNum, double weight) {
 		this.board = board;
 		if (aiNum != BLACK && aiNum != WHITE) {
 			throw new ValueOutOfRangeException();
@@ -88,7 +88,7 @@ public class AI {
 			try (FileInputStream file = new FileInputStream("boardCache.cache")) {
 				ObjectInputStream inputStream = new ObjectInputStream(file);
 				//noinspection unchecked
-				board.boardScoreCache = (Map<Integer, Map<Integer, Integer>>) inputStream.readObject();
+				board.boardScoreCache = (Map<Integer, Map<Short, Integer>>) inputStream.readObject();
 				success = true;
 			} catch (ClassNotFoundException e) {
 				System.out.println("Data file load fail! File format wrong");
@@ -115,7 +115,7 @@ public class AI {
 	 * @return List contain all valid points in order
 	 */
 	@SuppressWarnings({"ConstantConditions", "Duplicates"})
-	public List<int[]> generatePossiblePoints(int player) {
+	public List<int[]> generatePossiblePoints(short player) {
 		// Timer.startRecord("generatePossiblePoints");
 
 		List<int[]> five = new ArrayList<>();

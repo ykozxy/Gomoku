@@ -12,19 +12,19 @@ public class Board {
 	 * <p>
 	 * The constant represents EMPTY position.
 	 */
-	public static final int EMPTY = 10000;
+	public static final short EMPTY = 10000;
 	/**
 	 * 常量：表示黑子
 	 * <p>
 	 * The constant represents BLACK chess.
 	 */
-	public static final int BLACK = 10001;
+	public static final short BLACK = 10001;
 	/**
 	 * 常量：表示白子
 	 * <p>
 	 * The constant represent WHITE chess.
 	 */
-	public static final int WHITE = 10002;
+	public static final short WHITE = 10002;
 	/**
 	 * 常量：表示平局（游戏状态）
 	 * 在判断棋盘输赢时会用，若双方平局则返回这个常量
@@ -78,7 +78,7 @@ public class Board {
 	 * Value: A new map stores different scores for different players at this situation
 	 * Usage: boardScoreCache.get(int boardHashCode).get(int playerNumber) -> int score
 	 */
-	Map<Integer, Map<Integer, Integer>> boardScoreCache = new LinkedHashMap<>();
+	Map<Integer, Map<Short, Integer>> boardScoreCache = new LinkedHashMap<>();
 	/**
 	 * 单点得分缓存，用于加速单点评分
 	 * 当附近的位置发生变动时（新下棋，悔棋），会有函数更新其中的得分
@@ -88,14 +88,14 @@ public class Board {
 	 * 两个对角：3,4
 	 * 用法：pointScoreCache.get(int player)[int direction][int row][int column] -> int score
 	 */
-	Map<Integer, int[][][]> pointScoreCache = Map.of(BLACK, new int[5][15][15],
+	Map<Short, int[][][]> pointScoreCache = Map.of(BLACK, new int[5][15][15],
 					WHITE, new int[5][15][15]);
 	int chessCount = 0;
 	/**
 	 * 主要棋盘
 	 * 注意：所有的下棋操作必须由setChess方法完成，否则不会更新单点分数缓存
 	 */
-	private int[][] board;
+	private short[][] board;
 	/**
 	 * 记录下棋步骤，用于悔棋
 	 */
@@ -103,7 +103,7 @@ public class Board {
 	/**
 	 * 记录当前下棋玩家，默认黑棋开始
 	 */
-	private int playerTurn = BLACK;
+	private short playerTurn = BLACK;
 
 	/**
 	 * 默认构造器
@@ -118,13 +118,13 @@ public class Board {
 	 * @param data       棋盘（必须是二维数组形式）
 	 * @param playerTurn 当前玩家
 	 */
-	public Board(int[][] data, int playerTurn) {
+	public Board(short[][] data, short playerTurn) {
 		// 传入参数格式
 		if (data.length != 15 || data[0].length != 15) {
 			System.out.println("Illegal board size");
 			throw new ArrayIndexOutOfBoundsException();
 		}
-		for (int[] i : data) {
+		for (short[] i : data) {
 			for (int j : i) {
 				if (j != EMPTY && j != BLACK && j != WHITE) {
 					throw new ValueOutOfRangeException();
@@ -178,7 +178,7 @@ public class Board {
 	 *
 	 * @return the board
 	 */
-	public int[][] getBoard() {
+	public short[][] getBoard() {
 		return board;
 	}
 
@@ -191,7 +191,7 @@ public class Board {
 	 * @param player 下棋玩家（BLACK, WHITE, EMPTY）
 	 * @throws ValueOutOfRangeException 三个参数中任意一个超出范围
 	 */
-	public void setChess(int row, int column, int player) throws ValueOutOfRangeException {
+	public void setChess(int row, int column, short player) throws ValueOutOfRangeException {
 		if (row >= 15 || column >= 15 || row < 0 || column < 0) {
 			throw new ValueOutOfRangeException();
 		}
@@ -313,13 +313,13 @@ public class Board {
 	 * @param weight 打分权重（权重越大，算分越偏向于防守） 默认情况是建议 weight = 1
 	 * @return 整个棋盘的分数
 	 */
-	public int scoreBoard(int player, double weight) {
+	public int scoreBoard(short player, double weight) {
 		// Timer.startRecord("scoreBoard");
 
 		// 计算当前棋盘的哈希码
 		int hashCode = Arrays.deepHashCode(board);
 		// 若缓存中有当前棋盘则直接返回分数
-		Map<Integer, Integer> b = boardScoreCache.get(hashCode);
+		Map<Short, Integer> b = boardScoreCache.get(hashCode);
 		if (b != null && b.containsKey(player))
 			return b.get(player);
 		int result = _scoreBoard(player, weight);
@@ -341,7 +341,7 @@ public class Board {
 	 * @param weight 权重，同上
 	 * @return 棋盘分数
 	 */
-	private int _scoreBoard(int player, double weight) {
+	private int _scoreBoard(short player, double weight) {
 		int selfScore = 0, enemyScore = 0;
 		// 分别计算每个点的分数
 		for (int i = 0; i < 15; i++) {
@@ -758,7 +758,7 @@ public class Board {
 		int[] last = operations.remove(operations.size() - 1);
 		list.add(last[0]);
 		list.add(last[1]);
-		list.add(board[last[0]][last[1]]);
+		list.add((int) board[last[0]][last[1]]);
 		board[last[0]][last[1]] = EMPTY;
 		updateScore(last[0], last[1]);
 		return list;
@@ -768,7 +768,7 @@ public class Board {
 	 * 重设棋盘
 	 */
 	public void reset() {
-		board = new int[15][15];
+		board = new short[15][15];
 		for (int i = 0; i < 15; i++) {
 			for (int j = 0; j < 15; j++) {
 				board[i][j] = EMPTY;
@@ -801,7 +801,7 @@ public class Board {
 	public int isEnd() {
 		// Timer.startRecord("isEnd");
 		boolean jump = false;
-		for (int[] line : board) {
+		for (short[] line : board) {
 			for (int i : line) {
 				if (i == EMPTY) {
 					jump = true;
@@ -813,7 +813,7 @@ public class Board {
 			// Timer.endRecord("isEnd");
 			return TIE;
 		}
-		for (int[] line : splitBoard()) {
+		for (short[] line : splitBoard()) {
 			int current = 0;
 			int count = 0;
 			for (int i : line) {
@@ -910,14 +910,14 @@ public class Board {
 	 *
 	 * @return 所有的行、列、对角线
 	 */
-	public List<int[]> splitBoard() {
-		ArrayList<int[]> out = new ArrayList<>();
+	public ArrayList<short[]> splitBoard() {
+		ArrayList<short[]> out = new ArrayList<>();
 		// Horizontal
 		for (int i = 0; i < 15; i++)
 			out.add(board[i]);
 		// Vertical
 		for (int i = 0; i < 15; i++) {
-			int[] row = new int[15];
+			short[] row = new short[15];
 			for (int j = 0; j < 15; j++) {
 				row[j] = board[j][i];
 			}
@@ -925,7 +925,7 @@ public class Board {
 		}
 		// Diagonal 1
 		for (int base = 0; base < 29; base++) {
-			int[] line = new int[(base <= 14 ? base + 1 : 15) - (base <= 14 ? 0 : base - 14)];
+			short[] line = new short[(base <= 14 ? base + 1 : 15) - (base <= 14 ? 0 : base - 14)];
 			int p = 0;
 			for (int x = (base <= 14 ? 0 : base - 14); x < (base <= 14 ? base + 1 : 15); x++) {
 				line[p++] = board[x][base - x];
@@ -934,7 +934,7 @@ public class Board {
 		}
 		// Diagonal 2
 		for (int diff = -14; diff < 15; diff++) {
-			int[] line = new int[(diff < 0 ? 15 : 15 - diff) - (diff < 0 ? Math.abs(diff) : 0)];
+			short[] line = new short[(diff < 0 ? 15 : 15 - diff) - (diff < 0 ? Math.abs(diff) : 0)];
 			int p = 0;
 			for (int x = (diff < 0 ? Math.abs(diff) : 0); x < (diff < 0 ? 15 : 15 - diff); x++) {
 				line[p++] = board[x][diff + x];
@@ -948,7 +948,7 @@ public class Board {
 	public String toString() {
 		StringBuilder str = new StringBuilder().append("    0  1  2  3  4  5  6  7  8  9  10 11 12 13 14\n");
 		for (int i = 0; i < board.length; i++) {
-			int[] x = board[i];
+			short[] x = board[i];
 			str.append(i >= 10 ? "" : " ").append(i).append(" ");
 			for (int y : x) {
 				str.append(y == EMPTY ? " _" : (y == BLACK ? "●" : "○")).append(" ");
