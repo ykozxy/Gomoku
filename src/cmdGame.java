@@ -30,7 +30,7 @@ public class cmdGame {
 			} else {
 				System.out.println("Black●:");
 				System.out.println("Thinking...");
-				int[] aiInput = aiBlack.iterativeDeepening(3, false);
+				int[] aiInput = aiBlack.iterativeDeepening(0, false);
 				System.out.println("boardScoreCache = " + board.boardScoreCache.size());
 				System.out.println(Arrays.toString(aiInput));
 				board.setChess(aiInput[0], aiInput[1], true);
@@ -42,7 +42,7 @@ public class cmdGame {
 
 			System.out.println("White○:");
 			System.out.println("Thinking...");
-			int[] aiInput = aiWhite.iterativeDeepening(5, false);
+			int[] aiInput = aiWhite.iterativeDeepening(0, false);
 			System.out.println("boardScoreCache = " + board.boardScoreCache.size());
 			System.out.println(Arrays.toString(aiInput));
 			board.setChess(aiInput[0], aiInput[1], true);

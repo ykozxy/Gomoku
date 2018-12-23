@@ -5,7 +5,7 @@ import java.util.*;
  * <p>
  * The Main Board.
  */
-@SuppressWarnings("WeakerAccess")
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class Board {
 	/**
 	 * 常量：表示一个空位
@@ -78,7 +78,7 @@ public class Board {
 	 * Value: A new map stores different scores for different players at this situation
 	 * Usage: boardScoreCache.get(int boardHashCode).get(int playerNumber) -> int score
 	 */
-	Map<Integer, Map<Short, Integer>> boardScoreCache = new LinkedHashMap<>();
+	Map<Integer, Score> boardScoreCache = new HashMap<>();
 	/**
 	 * 单点得分缓存，用于加速单点评分
 	 * 当附近的位置发生变动时（新下棋，悔棋），会有函数更新其中的得分
@@ -243,6 +243,12 @@ public class Board {
 	public void updateScore(int row, int column) {
 		// Timer.startRecord("Update");
 
+//		If current chessboard is in the cache, then set pointScoreCache to the stored value
+		if (boardScoreCache.containsKey(Arrays.hashCode(board))) {
+			pointScoreCache = boardScoreCache.get(Arrays.hashCode(board)).pointScoreCache;
+			return;
+		}
+
 		// 更新分数的范围
 		final int range = 6;
 		// 横向查找
@@ -319,16 +325,16 @@ public class Board {
 		// 计算当前棋盘的哈希码
 		int hashCode = Arrays.deepHashCode(board);
 		// 若缓存中有当前棋盘则直接返回分数
-		Map<Short, Integer> b = boardScoreCache.get(hashCode);
-		if (b != null && b.containsKey(player))
-			return b.get(player);
+		Score b = boardScoreCache.get(hashCode);
+		if (b != null && b.getScore(player) != -1)
+			return b.getScore(player);
 		int result = _scoreBoard(player, weight);
 		// 将结果添加到缓存
 		if (b == null) {
-			b = new HashMap<>();
+			b = new Score(new HashMap<>(pointScoreCache));
 			boardScoreCache.put(hashCode, b);
 		}
-		b.put(player, result);
+		b.setScore(player, result);
 
 		// Timer.endRecord("scoreBoard");
 		return result;
@@ -637,7 +643,6 @@ public class Board {
 						return blockFour;
 				}
 			}
-
 		} else if (emptyPosition == 1 || emptyPosition == count - 1) {
 			// Empty on the first position
 			if (count >= 6)
@@ -691,8 +696,12 @@ public class Board {
 						return four;
 				}
 			} else if (block == 2) {
-				if (count == 4 || count == 5 || count == 6)
-					return blockFour;
+				switch (count) {
+					case 4:
+					case 5:
+					case 6:
+						return blockFour;
+				}
 			}
 
 		} else if (emptyPosition == 3 || emptyPosition == count - 3) {
@@ -731,15 +740,33 @@ public class Board {
 			// Empty on the fourth position
 			if (count > 9)
 				return five;
-			if (block == 0 && (count == 5 || count == 6 || count == 7 || count == 8))
-				return four;
-			else if (block == 1) {
-				if (count == 4 || count == 5 || count == 6 || count == 7)
-					return blockFour;
-				else if (count == 8)
-					return four;
-			} else if (block == 2 && count == 5 || count == 6 || count == 7 || count == 8)
-				return blockFour;
+			if (block == 0) {
+				switch (count) {
+					case 5:
+					case 6:
+					case 7:
+					case 8:
+						return four;
+				}
+			} else if (block == 1) {
+				switch (count) {
+					case 4:
+					case 5:
+					case 6:
+					case 7:
+						return blockFour;
+					case 8:
+						return four;
+				}
+			} else if (block == 2) {
+				switch (count) {
+					case 5:
+					case 6:
+					case 7:
+					case 8:
+						return blockFour;
+				}
+			}
 		} else if (emptyPosition == 5 || emptyPosition == count - 5)
 			return five;
 		return 0;
@@ -956,5 +983,24 @@ public class Board {
 			str.append("\n");
 		}
 		return String.valueOf(str);
+	}
+
+	class Score {
+		Map<Short, int[][][]> pointScoreCache;
+		private int blackScore, whiteScore;
+
+		Score(Map<Short, int[][][]> pointScoreCache) {
+			this.blackScore = this.whiteScore = -1;
+			this.pointScoreCache = pointScoreCache;
+		}
+
+		int getScore(short player) {
+			return (player == BLACK) ? blackScore : whiteScore;
+		}
+
+		void setScore(short player, int score) {
+			if (player == BLACK) blackScore = score;
+			else whiteScore = score;
+		}
 	}
 }

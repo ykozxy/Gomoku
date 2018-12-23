@@ -8,7 +8,7 @@ import java.util.Map;
 /**
  * The AI class.
  */
-@SuppressWarnings("WeakerAccess")
+@SuppressWarnings({"WeakerAccess", "unused"})
 public class AI {
 	/**
 	 * The constant EMPTY.
@@ -88,7 +88,7 @@ public class AI {
 			try (FileInputStream file = new FileInputStream("boardCache.cache")) {
 				ObjectInputStream inputStream = new ObjectInputStream(file);
 				//noinspection unchecked
-				board.boardScoreCache = (Map<Integer, Map<Short, Integer>>) inputStream.readObject();
+				board.boardScoreCache = (Map<Integer, Board.Score>) inputStream.readObject();
 				success = true;
 			} catch (ClassNotFoundException e) {
 				System.out.println("Data file load fail! File format wrong");
