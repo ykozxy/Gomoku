@@ -18,9 +18,18 @@ public class cmdGame {
 		AI aiWhite = new AI(board, Board.WHITE, .8);
 
 		Scanner scanner = new Scanner(System.in);
-		System.out.print("Input \"y\" to start player vs. AI.\nOtherwise, two AIs will start to play with each other" +
+		System.out.print("Input \"y\" to start playing with AI.\nOtherwise, two AIs will start to play with each other" +
 						"\nInput: ");
 		boolean involvePlayer = scanner.next().toLowerCase().equals("y");
+		int depth;
+		while (true) {
+			System.out.print("Input the depth of search for AI (\"0\" for auto): ");
+			try {
+				depth = Integer.parseInt(scanner.next());
+				break;
+			} catch (Exception ignored) {
+			}
+		}
 		System.out.println(board);
 
 		do {
@@ -32,7 +41,7 @@ public class cmdGame {
 			} else {
 				System.out.println("Black●:");
 				System.out.println("Thinking...");
-				int[] aiInput = aiBlack.iterativeDeepening(0, false);
+				int[] aiInput = aiBlack.iterativeDeepening(depth, false);
 				System.out.println("boardScoreCache = " + board.boardScoreCache.size());
 				System.out.println(Arrays.toString(aiInput));
 				board.setChess(aiInput[0], aiInput[1], true);
@@ -44,7 +53,7 @@ public class cmdGame {
 
 			System.out.println("White○:");
 			System.out.println("Thinking...");
-			int[] aiInput = aiWhite.iterativeDeepening(0, false);
+			int[] aiInput = aiWhite.iterativeDeepening(depth, false);
 			System.out.println("boardScoreCache = " + board.boardScoreCache.size());
 			System.out.println(Arrays.toString(aiInput));
 			board.setChess(aiInput[0], aiInput[1], true);
